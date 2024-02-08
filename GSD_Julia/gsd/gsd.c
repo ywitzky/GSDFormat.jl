@@ -2,6 +2,8 @@
 // Part of GSD, released under the BSD 2-Clause License.
 
 #include <sys/stat.h>
+#include <stdio.h>
+
 #ifdef _WIN32
 
 #pragma warning(push)
@@ -210,6 +212,7 @@ inline static ssize_t gsd_io_pread_retry(int fd, void* buf, size_t count, int64_
 
         errno = 0;
         ssize_t bytes_read = pread(fd, ptr + total_bytes_read, to_read, offset + total_bytes_read);
+
         if (bytes_read == -1 || (bytes_read == 0 && errno != 0))
             {
             return GSD_ERROR_IO;
@@ -628,7 +631,7 @@ inline static int gsd_index_buffer_map(struct gsd_index_buffer* buf, struct gsd_
         return GSD_ERROR_IO;
         }
 
-    buf->data = (struct gsd_index_entry*)(((char*)buf->mapped_data)
+    buf->data = (struct gsd_index_entry*) (((char*)buf->mapped_data)
                                           + (handle->header.index_location - offset));
 
     buf->mapped_len = index_size + (handle->header.index_location - offset);
@@ -1446,8 +1449,7 @@ inline static int gsd_initialize_handle(struct gsd_handle* handle)
         }
 
     // read the header
-    ssize_t bytes_read
-        = gsd_io_pread_retry(handle->fd, &handle->header, sizeof(struct gsd_header), 0);
+    ssize_t bytes_read = gsd_io_pread_retry(handle->fd, &handle->header, sizeof(struct gsd_header), 0);
     if (bytes_read == -1)
         {
         return GSD_ERROR_IO;
@@ -1528,8 +1530,7 @@ inline static int gsd_initialize_handle(struct gsd_handle* handle)
             break;
             }
 
-        retval
-            = gsd_name_id_map_insert(&handle->name_map, name, (uint16_t)handle->file_names.n_names);
+        retval  = gsd_name_id_map_insert(&handle->name_map, name, (uint16_t)handle->file_names.n_names);
         if (retval != GSD_SUCCESS)
             {
             return retval;
@@ -1671,6 +1672,7 @@ int gsd_create_and_open(struct gsd_handle* handle,
                                O_RDWR | O_CREAT | O_TRUNC | extra_flags,
                                S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
     int retval = gsd_initialize_file(handle->fd, application, schema, schema_version);
+
     if (retval != 0)
         {
         if (handle->fd != -1)
@@ -1681,6 +1683,7 @@ int gsd_create_and_open(struct gsd_handle* handle,
         }
 
     retval = gsd_initialize_handle(handle);
+
     if (retval != 0)
         {
         if (handle->fd != -1)
@@ -1693,6 +1696,7 @@ int gsd_create_and_open(struct gsd_handle* handle,
 
 int gsd_open(struct gsd_handle* handle, const char* fname, const enum gsd_open_flag flags)
     {
+
     // zero the handle
     gsd_util_zero_memory(handle, sizeof(struct gsd_handle));
 
@@ -1713,12 +1717,14 @@ int gsd_open(struct gsd_handle* handle, const char* fname, const enum gsd_open_f
         handle->open_flags = GSD_OPEN_READONLY;
         }
     else if (flags == GSD_OPEN_APPEND)
-        {
+        {                
         handle->fd = gsd_open_file(fname, O_RDWR | extra_flags, 0);
         handle->open_flags = GSD_OPEN_APPEND;
         }
 
+
     int retval = gsd_initialize_handle(handle);
+
     if (retval != 0)
         {
         if (handle->fd != -1)
@@ -1726,6 +1732,9 @@ int gsd_open(struct gsd_handle* handle, const char* fname, const enum gsd_open_f
             close(handle->fd);
             }
         }
+
+
+
     return retval;
     }
 
