@@ -54,7 +54,7 @@ end
 gsdfileobj = open(file)
 
 
-dimensions_arr = read_chunk(gsdfileobj, 1,"configuration/step" )
+dimensions_arr = read_chunk(gsdfileobj, 1,"configuration/dimensions" )
 #self.file.read_chunk( frame=idx, name='configuration/dimensions')
 println(dimensions_arr)
 
