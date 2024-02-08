@@ -1,0 +1,9 @@
+make gsd.o
+cp CMakeFiles/fl.dir/gsd.o ./
+gcc -shared -o libgsd.so gsd.o
+
+
+#-std=c99
+
+
+make gsd.o ; cp CMakeFiles/fl.dir/gsd.o ./; gcc -g -shared -o libgsd.so gsd.o
