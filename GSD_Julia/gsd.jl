@@ -1,4 +1,7 @@
-include("./libgsd.jl")
+include("./libgsd_ext.jl")
+
+using Base.Libc, CBinding
+#using .libgsd
 
 mutable struct GSDFILE{I<:Integer}
     name::String
@@ -9,16 +12,32 @@ mutable struct GSDFILE{I<:Integer}
     nframes::Int64
     maximum_write_buffer_size::Int64
     index_entries_to_buffer::Int64
-    c_name::Cstring
-    c_application::Cstring
-    c_schema::Cstring
-    c_schema_version::Cstring
-    schema_truncated::Cstring
-    gsd_handle::libgsd.Gsd_handle
+    c_name::Vector{UInt8}
+    c_application::Vector{UInt8}
+    c_schema::Vector{UInt8}
+    c_schema_version::Vector{UInt8}
+    schema_truncated::Vector{UInt8}
+    gsd_handle::Base.RefValue{typeof(libgsd.gsd_handle())} ### Base.RefValue{libgsd.gsd_handle} is different for whatever reason.
     is_open::Bool
 end
 
-removeNonASCII(str::AbstractString) = String([Char(c) for c in str if isascii(c)])
+#=
+mutable struct Gsd_header
+    magic::UInt64
+    gsd_version::UInt32
+    application::Vector{Cuchar}
+    schema::Vector{Cuchar}
+    schema_version::UInt32
+    index_location::UInt64
+    index_allocated_entries::UInt64
+    namelist_location::UInt64
+    namelist_allocated_entries::UInt64
+    reserved::Vector{Cuchar}
+    Gsd_header() = new(0x65DF65DF65DF65DF,3,zeros(Cuchar, 64),zeros(Cuchar, 64),0,0,0,0,0,zeros(Cuchar, 80),)
+end=#
+
+#removeNonASCII(str::AbstractString) = Base.unsafe_convert(Cstring,String([Char(c) for c in str if isascii(c)]))
+removeNonASCII(str::AbstractString) = Vector{UInt8}(String([Char(c) for c in str if isascii(c)]))
 
 function raise_on_error(retval, extra)
     """Raise the appropriate error type.
@@ -30,23 +49,23 @@ function raise_on_error(retval, extra)
     if retval == libgsd.GSD_ERROR_IO
         throw(ErrorException("GSD_ERROR_IO:,python error: \"Return a tuple for constructing an IOError.\""))
     elseif retval == libgsd.GSD_ERROR_NOT_A_GSD_FILE
-        throw(ErrorException("Not a GSD file: " + extra))
+        throw(ErrorException("Not a GSD file: " * extra))
     elseif retval == libgsd.GSD_ERROR_INVALID_GSD_FILE_VERSION
-        throw(ErrorException("Unsupported GSD file version: " + extra))
+        throw(ErrorException("Unsupported GSD file version: " * extra))
     elseif retval == libgsd.GSD_ERROR_FILE_CORRUPT
         throw(ErrorException("Corrupt GSD file: " + extra))
     elseif retval == libgsd.GSD_ERROR_MEMORY_ALLOCATION_FAILED
-        throw(ErrorException("Memory allocation failed: " + extra))
+        throw(ErrorException("Memory allocation failed: " * extra))
     elseif retval == libgsd.GSD_ERROR_NAMELIST_FULL
-        throw(ErrorException("GSD namelist is full: " + extra))
+        throw(ErrorException("GSD namelist is full: " * extra))
     elseif retval == libgsd.GSD_ERROR_FILE_MUST_BE_WRITABLE
-        throw(ErrorException("File must be writable: " + extra))
+        throw(ErrorException("File must be writable: " * extra))
     elseif retval == libgsd.GSD_ERROR_FILE_MUST_BE_READABLE
-        throw(ErrorException("File must be readable: " + extra))
+        throw(ErrorException("File must be readable: " * extra))
     elseif retval == libgsd.GSD_ERROR_INVALID_ARGUMENT
-        throw(ErrorException("Invalid gsd argument: " + extra))
+        throw(ErrorException("Invalid gsd argument: " * extra))
     elseif retval != 0
-        throw(ErrorException("Unknown error: " + extra))
+        throw(ErrorException("Unknown error $(retval): " * extra))
     end
 end
 
@@ -54,7 +73,7 @@ function Init_GSDFILE(name::AbstractString,mode::AbstractString,application::Abs
 
     exclusive_create=false
     overwrite=false
-
+    c_flags= libgsd.GSD_OPEN_READONLY
     if mode == "w"
         c_flags = libgsd.GSD_OPEN_READWRITE
         overwrite = true
@@ -64,7 +83,7 @@ function Init_GSDFILE(name::AbstractString,mode::AbstractString,application::Abs
         c_flags = libgsd.GSD_OPEN_READWRITE
     elseif mode == "x"
         c_flags = libgsd.GSD_OPEN_READWRITE
-        overwrite = 1
+        overwrite = true
         exclusive_create = true
     elseif mode == "a"
         c_flags = libgsd.GSD_OPEN_READWRITE
@@ -74,13 +93,15 @@ function Init_GSDFILE(name::AbstractString,mode::AbstractString,application::Abs
     else
         throw(ArgumentError("Invalid mode: " * mode))
     end
+    
+    gsd_handle =  Ref(libgsd.gsd_handle())
 
-    gsd_handle = libgsd.Gsd_handle()
     c_name = ""
     c_application = ""
     c_schema = ""
     c_schema_version = ""
-    gsd_version =  (0,0) ### "???"
+    gsd_version = schema_version #(0,0) ### "???"
+
 
     if overwrite
         if application == Nothing
@@ -111,26 +132,14 @@ function Init_GSDFILE(name::AbstractString,mode::AbstractString,application::Abs
                                                     schema_version[1])
 
         #with nogil:
-        println("pre $(gsd_handle)")
         retval = libgsd.gsd_create_and_open(gsd_handle, c_name,c_application,c_schema, c_schema_version,c_flags,exclusive_create)
-        println("post $(gsd_handle)")
 
     else
-        # open an existing file
-        #logger.info('opening file: ' + name + ' with mode: ' + mode)
-        #name_e = name.encode('utf-8')
         c_name = removeNonASCII(name)
 
-        #with nogil:
-        println("pre $(gsd_handle)")
-        println("\n\n\n\n $(c_flags)")
-        retval = libgsd.gsd_open(gsd_handle, c_name, c_flags)
-        println("post $(gsd_handle)")
-        println("\n\n\n\n $(c_flags)")
-        println("retval = $(retval)")
-
-
+        retval = libgsd.gsd_open(gsd_handle,c_name,c_flags)
     end
+
     raise_on_error(retval, name)
 
     if ~isnothing(schema)
@@ -142,149 +151,234 @@ function Init_GSDFILE(name::AbstractString,mode::AbstractString,application::Abs
             throw(ErrorException("file $(name) has incorrect schema: $(schema)"))
         end
     end
+    
+    schema_truncated = Vector{UInt8}(schema_truncated )
+    c_application    = Vector{UInt8}(c_application )
+    c_schema         = Vector{UInt8}(c_schema )
+    c_schema_version = Vector{UInt8}(c_schema_version )
 
-    return GSDFILE{I}(name,mode,gsd_version,application,schema_version,0,0,0,    pointer(c_name),pointer(c_application),pointer(c_schema),pointer(c_schema_version),pointer(schema_truncated),gsd_handle, true)
+    return GSDFILE{I}(name,mode,gsd_version,application,schema_version,0,0,0,  c_name,c_application,c_schema,c_schema_version,schema_truncated,gsd_handle, true)
 end
 
 function read_chunk(file::GSDFILE, frame::I, name::String) where {I<:Integer}
-        """read_chunk(frame, name)
+    """read_chunk(frame, name)
 
-        Read a data chunk from the file and return it as a array.
+    Read a data chunk from the file and return it as a array.
 
-        Args:
-            frame (int): Index of the frame to read
-            name (str): Name of the chunk
+    Args:
+        frame (int): Index of the frame to read
+        name (str): Name of the chunk
 
-        Returns:
-            ``(N,M)`` or ``(N,)`` `numpy.ndarray` of ``type``: Data read from
-            file. ``N``, ``M``, and ``type`` are determined by the chunk
-            metadata. If the data is NxM in the file and M > 1, return a 2D
-            array. If the data is Nx1, return a 1D array.
+    Returns:
+        ``(N,M)`` or ``(N,)`` `numpy.ndarray` of ``type``: Data read from
+        file. ``N``, ``M``, and ``type`` are determined by the chunk
+        metadata. If the data is NxM in the file and M > 1, return a 2D
+        array. If the data is Nx1, return a 1D array.
 
-        .. tip::
-            Each call invokes a disk read and allocation of a
-            new numpy array for storage. To avoid overhead, call
-            :py:meth:`read_chunk()` on the same chunk only once.
+    .. tip::
+        Each call invokes a disk read and allocation of a
+        new numpy array for storage. To avoid overhead, call
+        :py:meth:`read_chunk()` on the same chunk only once.
 
-        Example:
-            .. ipython:: python
-                :okexcept:
+    Example:
+        .. ipython:: python
+            :okexcept:
 
-                with gsd.fl.open(name='file.gsd', mode='w',
-                                 application="My application",
-                                 schema="My Schema", schema_version=[1,0]) as f:
-                    f.write_chunk(name='chunk1',
-                                  data=numpy.array([1,2,3,4],
-                                                   dtype=numpy.float32))
-                    f.write_chunk(name='chunk2',
-                                  data=numpy.array([[5,6],[7,8]],
-                                                   dtype=numpy.float32))
-                    f.end_frame()
-                    f.write_chunk(name='chunk1',
-                                  data=numpy.array([9,10,11,12],
-                                                   dtype=numpy.float32))
-                    f.write_chunk(name='chunk2',
-                                  data=numpy.array([[13,14],[15,16]],
-                                                   dtype=numpy.float32))
-                    f.end_frame()
-
-                f = gsd.fl.open(name='file.gsd', mode='r',
+            with gsd.fl.open(name='file.gsd', mode='w',
                                 application="My application",
-                                schema="My Schema", schema_version=[1,0])
-                f.read_chunk(frame=0, name='chunk1')
-                f.read_chunk(frame=1, name='chunk1')
-                f.read_chunk(frame=2, name='chunk1')
-                f.close()
-        """
-        
-        if ~file.is_open
-            throw(ErrorException("File is not open"))
-        end
+                                schema="My Schema", schema_version=[1,0]) as f:
+                f.write_chunk(name='chunk1',
+                                data=numpy.array([1,2,3,4],
+                                                dtype=numpy.float32))
+                f.write_chunk(name='chunk2',
+                                data=numpy.array([[5,6],[7,8]],
+                                                dtype=numpy.float32))
+                f.end_frame()
+                f.write_chunk(name='chunk1',
+                                data=numpy.array([9,10,11,12],
+                                                dtype=numpy.float32))
+                f.write_chunk(name='chunk2',
+                                data=numpy.array([[13,14],[15,16]],
+                                                dtype=numpy.float32))
+                f.end_frame()
 
-        #cdef const libgsd.gsd_index_entry* index_entry
-        #cdef char * c_name
-        c_name = removeNonASCII(name)
+            f = gsd.fl.open(name='file.gsd', mode='r',
+                            application="My application",
+                            schema="My Schema", schema_version=[1,0])
+            f.read_chunk(frame=0, name='chunk1')
+            f.read_chunk(frame=1, name='chunk1')
+            f.read_chunk(frame=2, name='chunk1')
+            f.close()
+    """
+    
+    if ~file.is_open
+        throw(ErrorException("File is not open"))
+    end
 
+    c_name = removeNonASCII(name)
 
-        #cdef int64_t c_frame
-        #c_frame = Cinframe
+    index_entry_ptr = libgsd.gsd_find_chunk(file.gsd_handle,UInt64(frame),name)
+    index_entry = index_entry_ptr[]
 
-        #with nogil:
-        println(file.gsd_handle)
-        index_entry = libgsd.gsd_find_chunk(file.gsd_handle,UInt64(frame),name) 
+    #GC.@preserve index_entry_ptr index_entry begin
 
         if isnothing(index_entry)
-            throw(ErrorException("frame $(frame) / chunk $(name) not found in: $(file.name)"))
-        end
+        throw(ErrorException("frame $(frame) / chunk $(name) not found in: $(file.name)"))
+    end
 
-        #data = unsafe_wrap(Vector{Int64}, ap, (index_entry.N, index_entry.M), own=false)
-        println(index_entry)
-        gsd_type = index_entry.type
-        println(gsd_type)
-        println(index_entry.frame)
-        if gsd_type == libgsd.GSD_TYPE_UINT8
-            data_array = zeros(UInt8 ,(index_entry.N, index_entry.M))
-        elseif gsd_type == libgsd.GSD_TYPE_UINT16
-            data_array = zeros(UInt16,(index_entry.N, index_entry.M))
-        elseif gsd_type == libgsd.GSD_TYPE_UINT32
-            data_array = zeros(UInt32,(index_entry.N, index_entry.M))
-        elseif gsd_type == libgsd.GSD_TYPE_UINT64
-            data_array = zeros(UInt64,(index_entry.N, index_entry.M))
-        elseif gsd_type == libgsd.GSD_TYPE_INT8
-            data_array = zeros(Int8 ,(index_entry.N, index_entry.M))
-        elseif gsd_type == libgsd.GSD_TYPE_INT16
-            data_array = zeros(Int16,(index_entry.N, index_entry.M))
-        elseif gsd_type == libgsd.GSD_TYPE_INT32
-            data_array = zeros(Int32,(index_entry.N, index_entry.M))
-        elseif gsd_type == libgsd.GSD_TYPE_INT64
-            data_array = zeros(Int64,(index_entry.N, index_entry.M))
-        elseif gsd_type == libgsd.GSD_TYPE_FLOAT
-            data_array = zeros(Float32,(index_entry.N, index_entry.M))
-        elseif gsd_type == libgsd.GSD_TYPE_DOUBLE
-            data_array = zeros(Float64,(index_entry.N, index_entry.M))
-        else
-            throw(ErrorException("invalid type for chunk: $(name)"))
-        end
+    gsd_type = index_entry.type
+    
+    if gsd_type == libgsd.GSD_TYPE_UINT8
+        data_type=UInt8
+        #data_array = zeros(UInt8 ,(index_entry.N, index_entry.M))
+    elseif gsd_type == libgsd.GSD_TYPE_UINT16
+        data_type=UInt16
+        #data_array = zeros(UInt16,(index_entry.N, index_entry.M))
+    elseif gsd_type == libgsd.GSD_TYPE_UINT32
+        data_type=UInt32
+        #data_array = zeros(UInt32,(index_entry.N, index_entry.M))
+    elseif gsd_type == libgsd.GSD_TYPE_UINT64
+        data_type=UInt64
+        #data_array = zeros(UInt64,(index_entry.N, index_entry.M))
+    elseif gsd_type == libgsd.GSD_TYPE_INT8
+        data_type=Int8
+        #data_array = zeros(Int8 ,(index_entry.N, index_entry.M))
+    elseif gsd_type == libgsd.GSD_TYPE_INT16
+        data_type=Int16
+        #data_array = zeros(Int16,(index_entry.N, index_entry.M))
+    elseif gsd_type == libgsd.GSD_TYPE_INT32
+        data_type=Int32
+        #data_array = zeros(Int32,(index_entry.N, index_entry.M))
+    elseif gsd_type == libgsd.GSD_TYPE_INT64
+        data_type=Int64
+        #data_array = zeros(Int64,(index_entry.N, index_entry.M))
+    elseif gsd_type == libgsd.GSD_TYPE_FLOAT
+        data_type=Float32
+        #data_array = zeros(Float32,(index_entry.N, index_entry.M))
+    elseif gsd_type == libgsd.GSD_TYPE_DOUBLE
+        data_type=Float64
+        #data_array = zeros(Float64,(index_entry.N, index_entry.M))
+    else
+        throw(ErrorException("invalid type for chunk: $(name)"))
+    end
 
-        # only read chunk if we have data
-        if index_entry.N != 0 && index_entry.M != 0
-            data_ptr=Ptr{Cvoid}(pointer_from_objref(Ref(data_array)))
-            #=if gsd_type == libgsd.GSD_TYPE_UINT8:
-                data_ptr = __get_ptr_uint8(data_array)
-            elif gsd_type == libgsd.GSD_TYPE_UINT16:
-                data_ptr = __get_ptr_uint16(data_array)
-            elif gsd_type == libgsd.GSD_TYPE_UINT32:
-                data_ptr = __get_ptr_uint32(data_array)
-            elif gsd_type == libgsd.GSD_TYPE_UINT64:
-                data_ptr = __get_ptr_uint64(data_array)
-            elif gsd_type == libgsd.GSD_TYPE_INT8:
-                data_ptr = __get_ptr_int8(data_array)
-            elif gsd_type == libgsd.GSD_TYPE_INT16:
-                data_ptr = __get_ptr_int16(data_array)
-            elif gsd_type == libgsd.GSD_TYPE_INT32:
-                data_ptr = __get_ptr_int32(data_array)
-            elif gsd_type == libgsd.GSD_TYPE_INT64:
-                data_ptr = __get_ptr_int64(data_array)
-            elif gsd_type == libgsd.GSD_TYPE_FLOAT:
-                data_ptr = __get_ptr_float32(data_array)
-            elif gsd_type == libgsd.GSD_TYPE_DOUBLE:
-                data_ptr = __get_ptr_float64(data_array)
-            else:
-                raise ValueError("invalid type for chunk: " + name)
-                =#
+    data_ptr = Libc.calloc(index_entry.N*index_entry.M, sizeof(data_type)) ### allocate zeroed memory in c-style
 
-            #with nogil:
-            retval = libgsd.gsd_read_chunk(file.gsd_handle,data_ptr,index_entry)
+    # only read chunk if we have data
+    if index_entry.N != 0 && index_entry.M != 0
 
-            raise_on_error(retval, self.name)
-        end
-        #=if index_entry.M == 1:
-            return data_array.reshape([index_entry.N])
-        else:
-            return data_array=#
+        retval = libgsd.gsd_read_chunk(file.gsd_handle,data_ptr,index_entry_ptr)::Int32
+
+        raise_on_error(retval, name)
+
+        data_array = copy(permutedims( unsafe_wrap(Matrix{data_type}, reinterpret(Ptr{data_type}, data_ptr),(UInt64(index_entry.M), UInt64(index_entry.N)); own=false), (2,1))) ###retrieve data from pointer and convert from cstyle to julia/fortran-style order; command is messy since Cbinding cant deal with void pointer for the data array
+        ### TODO Potentially optimise
+    end
+    Libc.free(data_ptr) ### free alloc
+
+    if index_entry.M == 1
+        return reshape(data_array, Int64(index_entry.N) )
+    else
+        return data_array
+    end
 end
 
-function open(name, mode; application=None, schema=None, schema_version=None)
+function chunk_exists(file::GSDFILE, frame::I, name::String) where {I<:Integer}
+    """chunk_exists(frame, name)
+
+    Test if a chunk exists.
+
+    Args:
+        frame (int): Index of the frame to check
+        name (str): Name of the chunk
+
+    Returns:
+        bool: ``True`` if the chunk exists in the file at the given frame.\
+            ``False`` if it does not.
+
+    Example:
+        .. ipython:: python
+
+            with gsd.fl.open(name='file.gsd', mode='w',
+                                application="My application",
+                                schema="My Schema", schema_version=[1,0]) as f:
+                f.write_chunk(name='chunk1',
+                                data=numpy.array([1,2,3,4],
+                                                dtype=numpy.float32))
+                f.write_chunk(name='chunk2',
+                                data=numpy.array([[5,6],[7,8]],
+                                                dtype=numpy.float32))
+                f.end_frame()
+                f.write_chunk(name='chunk1',
+                                data=numpy.array([9,10,11,12],
+                                                dtype=numpy.float32))
+                f.write_chunk(name='chunk2',
+                                data=numpy.array([[13,14],[15,16]],
+                                                dtype=numpy.float32))
+                f.end_frame()
+
+            f = gsd.fl.open(name='file.gsd', mode='r',
+                            application="My application",
+                            schema="My Schema", schema_version=[1,0])
+
+            f.chunk_exists(frame=0, name='chunk1')
+            f.chunk_exists(frame=0, name='chunk2')
+            f.chunk_exists(frame=0, name='chunk3')
+            f.chunk_exists(frame=10, name='chunk1')
+            f.close()
+    """
+
+    index_entry_ptr = libgsd.gsd_find_chunk(file.gsd_handle,UInt64(frame),name)
+
+    return ~libgsd.isNULL(index_entry_ptr)
+
+end
+
+    
+function open_gsd(name, mode="r")
+    """Open a hoomd schema GSD file.
+
+    The return value of `open` can be used as a context manager.
+
+    Args:
+        name (str): File name to open.
+        mode (str): File open mode.
+
+    Returns:
+        `HOOMDTrajectory` instance that accesses the file **name** with the
+        given **mode**.
+
+    Valid values for ``mode``:
+
+    +------------------+---------------------------------------------+
+    | mode             | description                                 |
+    +==================+=============================================+
+    | ``'r'``          | Open an existing file for reading.          |
+    +------------------+---------------------------------------------+
+    | ``'r+'``         | Open an existing file for reading and       |
+    |                  | writing.                                    |
+    +------------------+---------------------------------------------+
+    | ``'w'``          | Open a file for reading and writing.        |
+    |                  | Creates the file if needed, or overwrites   |
+    |                  | an existing file.                           |
+    +------------------+---------------------------------------------+
+    | ``'x'``          | Create a gsd file exclusively and opens it  |
+    |                  | for reading and writing.                    |
+    |                  | Raise :py:exc:`FileExistsError`             |
+    |                  | if it already exists.                       |
+    +------------------+---------------------------------------------+
+    | ``'a'``          | Open a file for reading and writing.        |
+    |                  | Creates the file if it doesn't exist.       |
+    +------------------+---------------------------------------------+
+
+    """
+
+    gsdfileobj = open_gsd_(String(name),mode; application="gsd.hoomd ", schema="hoomd", schema_version=(1, 4))
+    return gsdfileobj
+end
+
+
+function open_gsd_(name::AbstractString, mode::AbstractString; application=None, schema=None, schema_version=None)
     """open(name, mode, application=None, schema=None, schema_version=None)
 
     :py:func:`open` opens a GSD file and returns a :py:class:`GSDFile` instance.
@@ -364,6 +458,9 @@ function open(name, mode; application=None, schema=None, schema_version=None)
     return Init_GSDFILE(String(name), mode, application, schema, schema_version)
 end
 
-function find_chunk(file, frame, name)
-
+function get_nframes(gsdfileobj::GSDFILE)
+    return libgsd.gsd_get_nframes(gsdfileobj.gsd_handle)
 end
+#function find_chunk(file, frame, name)
+
+#end
