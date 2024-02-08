@@ -55,7 +55,6 @@ bla = [gsd_handle_var]
 
 
 retval = gsd_read_chunk(pointer_from_objref(Ref(gsd_handle_var)), 0,"configuration/dimensions")
-
 #c"gsd_read_chunk"(gsd_handle2, Cint(0),"configuration/dimensions")
 
 version =gsd_make_version(UInt32(1),UInt32(4))
