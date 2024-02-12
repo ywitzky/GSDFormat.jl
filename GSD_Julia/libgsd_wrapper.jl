@@ -28,6 +28,9 @@ c"""
 #include "/uni-mainz.de/homes/ywitzky/phdscripts/GSD/GSD_Julia/gsd/gsd.h"
 """ji
 
+function getNULL()::Cptr{Cvoid}
+    return Cptr{Cvoid}(0x0000000000000000)
+end
 
 function isNULL(ptr::Cptr{T}) where {T<:Any}
     return ptr==Cptr{Cvoid}(0x0000000000000000)
