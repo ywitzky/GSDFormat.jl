@@ -1,7 +1,9 @@
-include("./libgsd_ext.jl")
+include("./libgsd_wrapper.jl")
 
 using Base.Libc, CBinding
-#using .libgsd
+
+
+### basically a julia copy of fl.pyx
 
 mutable struct GSDFILE{I<:Integer}
     name::String
@@ -21,22 +23,6 @@ mutable struct GSDFILE{I<:Integer}
     is_open::Bool
 end
 
-#=
-mutable struct Gsd_header
-    magic::UInt64
-    gsd_version::UInt32
-    application::Vector{Cuchar}
-    schema::Vector{Cuchar}
-    schema_version::UInt32
-    index_location::UInt64
-    index_allocated_entries::UInt64
-    namelist_location::UInt64
-    namelist_allocated_entries::UInt64
-    reserved::Vector{Cuchar}
-    Gsd_header() = new(0x65DF65DF65DF65DF,3,zeros(Cuchar, 64),zeros(Cuchar, 64),0,0,0,0,0,zeros(Cuchar, 80),)
-end=#
-
-#removeNonASCII(str::AbstractString) = Base.unsafe_convert(Cstring,String([Char(c) for c in str if isascii(c)]))
 removeNonASCII(str::AbstractString) = Vector{UInt8}(String([Char(c) for c in str if isascii(c)]))
 
 function raise_on_error(retval, extra)
@@ -457,6 +443,105 @@ function open_gsd_(name::AbstractString, mode::AbstractString; application=None,
 
     return Init_GSDFILE(String(name), mode, application, schema, schema_version)
 end
+
+
+function find_matching_chunk_names(file::GSDFILE, match::AbstractString)
+    """find_matching_chunk_names(match)
+
+    Find all the chunk names in the file that start with the string *match*.
+
+    Args:
+        match (str): Start of the chunk name to match
+
+    Returns:
+        array[str]: Matching chunk names
+
+    Example:
+        .. ipython:: python
+
+            with gsd.fl.open(name='file.gsd', mode='w',
+                            application="My application",
+                            schema="My Schema", schema_version=[1,0]) as f:
+                f.write_chunk(name='data/chunk1',
+                            data=numpy.array([1,2,3,4],
+                                            dtype=numpy.float32))
+                f.write_chunk(name='data/chunk2',
+                            data=numpy.array([[5,6],[7,8]],
+                                            dtype=numpy.float32))
+                f.write_chunk(name='input/chunk3',
+                            data=numpy.array([9, 10],
+                                            dtype=numpy.float32))
+                f.end_frame()
+                f.write_chunk(name='input/chunk4',
+                            data=numpy.array([11, 12, 13, 14],
+                                            dtype=numpy.float32))
+                f.end_frame()
+
+            f = gsd.fl.open(name='file.gsd', mode='r',
+                            application="My application",
+                            schema="My Schema", schema_version=[1,0])
+
+            f.find_matching_chunk_names('')
+            f.find_matching_chunk_names('data')
+            f.find_matching_chunk_names('input')
+            f.find_matching_chunk_names('other')
+            f.close()
+    """
+
+    if ~file.is_open throw(SystemError("File is not open")) end
+
+    retval = zeros(UInt32,0)
+
+    c_found = libgsd.gsd_find_matching_chunk_name(file.gsd_handle,match,libgsd.getNULL())
+
+    while  ~libgsd.isNULL(c_found)
+        push!(retval, c_found)
+        c_found = libgsd.gsd_find_matching_chunk_name(file.gsd_handle,match,c_found)
+    end
+
+    return retval
+end
+
+
+function close(file::GSDFILE)
+    """close()
+
+    Close the file.
+
+    Once closed, any other operation on the file object will result in a
+    `ValueError`. :py:meth:`close()` may be called more than once.
+    The file is automatically closed when garbage collected or when
+    the context manager exits.
+
+    Example:
+        .. ipython:: python
+            :okexcept:
+
+            f = gsd.fl.open(name='file.gsd', mode='w',
+                            application="My application",
+                            schema="My Schema", schema_version=[1,0])
+            f.write_chunk(name='chunk1',
+                        data=numpy.array([1,2,3,4], dtype=numpy.float32))
+            f.end_frame()
+            data = f.read_chunk(frame=0, name='chunk1')
+
+            f.close()
+            # Read fails because the file is closed
+            data = f.read_chunk(frame=0, name='chunk1')
+
+    """
+    if file.is_open
+        ##logger.info('closing file: ' + self.name)
+        retval = libgsd.gsd_close(file.gsd_handle)
+        file.is_open = false
+        raise_on_error(retval, file.name)
+    end
+
+    return nothing
+end
+
+
+
 
 function get_nframes(gsdfileobj::GSDFILE)
     return libgsd.gsd_get_nframes(gsdfileobj.gsd_handle)
