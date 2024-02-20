@@ -1,237 +1,373 @@
-### copies class definitions from hoomd.py
+abstract type StructType end
 
-import Base: size, getindex
+mutable struct ConfigurationData <: StructType
+    """Store configuration data.
 
-mutable struct HOOMDTrajectory{I<:Integer}
-    file::GSDFILE{I}
-    initial_frame::I
-    HOOMDTrajectory(gsdobj::GSDFILE{I}) = init_HOOMDTrajectory(gsdobj)
+    Use the `Frame.configuration` attribute of a to access the configuration.
+
+    Attributes:
+        step (int): Time step of this frame (:chunk:`configuration/step`).
+
+        dimensions (int): Number of dimensions
+            (:chunk:`configuration/dimensions`). When not set explicitly,
+            dimensions will default to different values based on the value of
+            :math:`L_z` in `box`. When :math:`L_z = 0` dimensions will default
+            to 2, otherwise 3. User set values always take precedence.
+    """
+    step::UInt64
+    dimensions::Vector{UInt8}
+    box::Vector{Float32}
+    ConfigurationData() = new(nothing, nothing, nothing)
 end
-"""Read and write hoomd gsd files.
 
-Args:
-    file (`gsd.fl.GSDFile`): File to access.
-
-Open hoomd GSD files with `open`.
-"""
-
-function init_HOOMDTrajectory(file::GSDFILE{I}) where {I<:Integer}
-    if file.mode == "ab"
-        throw(SystemError("Append mode not yet supported"))
+function set_box!(data::ConfigurationData, Box::Vector{Float32}) 
+    if (length(Box)==6)
+        data.box .=Box
+        if isnothing(self.dimensions)
+            data.dimension = Box[3]==0 ? 2 : 3 
+        end
+    else
+        throw(TypeError("Set Box expects Vector{Float32} of length 6."))
     end
-
-    trajectory = HOOMDTrajectory(file, nothing)
-
-    #logger.info('opening HOOMDTrajectory: ' + str(self.file))
-
-    if trajectory.file.schema != 'hoomd'
-        throw(InitError('GSD file is not a hoomd schema file: '+ str(trajectory.file)))
-    end
-
-    valid = false
-    version = trajectory.file.schema_version
-    if (version < (2, 0) and version >= (1, 0))
-        valid = true
-    end
-    if ~valid
-        throw(InitError('Incompatible hoomd schema version '
-                           + str(version) + ' in: ' + str(self.file)))
-
-    #logger.info('found ' + str(len(self)) + ' frames')
-    return trajectory
+    return nothing
 end
 
-function size(traj::HOOMDTrajectory{Integer})
-    """The number of frames in the trajectory."""
-    traj.file.nframes
+function get_box(data::ConfigurationData)
+    """((6, 1) `numpy.ndarray` of ``numpy.float32``): Box dimensions \
+    (:chunk:`configuration/box`).
+
+    [lx, ly, lz, xy, xz, yz].
+    """
+    return data.box
 end
 
-@inline function firstindex(traj::HOOMDTrajectory{Integer})    
-    """ Lowers to begin in Array index A[begin:end] """    
-    return 1
-end
+function validate(data::ConfigurationData)
+    ### Julia types ensures all types validation done here.
 
-@inline function lastindex(traj::HOOMDTrajectory{Integer})
-    """ Lowers to end in Array index A[begin:end] """    
-    return traj.file.nframes
-end
 
-function getindex(traj::HOOMDTrajectory{Integer}, key::Integer) 
-    """Index trajectory frames.
+    #="""Validate all attributes. 
 
-    The index can be a positive integer, negative integer, or slice and is
-    interpreted the same as `list` indexing.
+    Convert every array attribute to a `numpy.ndarray` of the proper
+    type and check that all attributes have the correct dimensions.
+
+    Ignore any attributes that are ``None``.
 
     Warning:
-        As you loop over frames, each frame is read from the file when it is
-        reached in the iteration. Multiple passes may lead to multiple disk
-        reads if the file does not fit in cache.
-    """
-
-    if key < 1 || key > traj.file.nframes
-        throw(BoundsError("Key $key not within bounds [1:$(traj.file.nframes)] of HOOMDTrajectory."))
-    end
-
-    return _read_frame(traj,key)
-
+        Array attributes that are not contiguous numpy arrays will be
+        replaced with contiguous numpy arrays of the appropriate type.
+    """=#
+    #logger.debug('Validating ConfigurationData')
+    #=
+    if !isnothing(data.box)
+        self.box = numpy.ascontiguousarray(self.box, dtype=numpy.float32)
+        self.box = self.box.reshape([6])
+    end=#
+    return nothing
 end
 
 
-function _read_frame(traj::HOOMDTrajectory{Integer}, idx::Integer):
-    """Read the frame at the given index from the file.
+mutable struct ParticleData <: StructType
+    """Store particle data chunks.
 
-    Args:
-        idx (int): Frame index to read.
+    Use the `Frame.particles` attribute of a to access the particles.
 
-    Returns:
-        `Frame` with the frame data
+    Instances resulting from file read operations will always store array
+    quantities in `numpy.ndarray` objects of the defined types. User created
+    frames may provide input data that can be converted to a `numpy.ndarray`.
 
-    Replace any data chunks not present in the given frame with either data
-    from frame 0, or initialize from default values if not in frame 0. Cache
-    frame 0 data to avoid file read overhead. Return any default data as
-    non-writable numpy arrays.
+    See Also:
+        `hoomd.State` for a full description of how HOOMD interprets this
+        data.
+
+    Attributes:
+        N (int): Number of particles in the frame (:chunk:`particles/N`).
+
+        types (tuple[str]):
+            Names of the particle types (:chunk:`particles/types`).
+
+        position ((*N*, 3) `numpy.ndarray` of ``numpy.float32``):
+            Particle position (:chunk:`particles/position`).
+
+        orientation ((*N*, 4) `numpy.ndarray` of ``numpy.float32``):
+            Particle orientation. (:chunk:`particles/orientation`).
+
+        typeid ((*N*, ) `numpy.ndarray` of ``numpy.uint32``):
+            Particle type id (:chunk:`particles/typeid`).
+
+        mass ((*N*, ) `numpy.ndarray` of ``numpy.float32``):
+            Particle mass (:chunk:`particles/mass`).
+
+        charge ((*N*, ) `numpy.ndarray` of ``numpy.float32``):
+            Particle charge (:chunk:`particles/charge`).
+
+        diameter ((*N*, ) `numpy.ndarray` of ``numpy.float32``):
+            Particle diameter (:chunk:`particles/diameter`).
+
+        body ((*N*, ) `numpy.ndarray` of ``numpy.int32``):
+            Particle body (:chunk:`particles/body`).
+
+        moment_inertia ((*N*, 3) `numpy.ndarray` of ``numpy.float32``):
+            Particle moment of inertia (:chunk:`particles/moment_inertia`).
+
+        velocity ((*N*, 3) `numpy.ndarray` of ``numpy.float32``):
+            Particle velocity (:chunk:`particles/velocity`).
+
+        angmom ((*N*, 4) `numpy.ndarray` of ``numpy.float32``):
+            Particle angular momentum (:chunk:`particles/angmom`).
+
+        image ((*N*, 3) `numpy.ndarray` of ``numpy.int32``):
+            Particle image (:chunk:`particles/image`).
+
+        type_shapes (tuple[dict]): Shape specifications for
+            visualizing particle types (:chunk:`particles/type_shapes`).
     """
-    if idx >= size(traj)
-        throw(BoundsError("Key $key not within bounds [1:$(traj.file.nframes)] of HOOMDTrajectory."))
+    N::UInt32
+    types::Vector{String}
+    typeid::Vector{UInt32}
+    mass::Vector{Float32}
+    charge::Vector{Float32}
+    diameter::Vector{Float32}
+    body::Vector{Int32}
+    moment_inertia::Array{Float32}
+    position::Array{Float32}
+    orientation::Array{Float32}
+    velocity::Array{Float32}
+    angmom::Array{Float32}
+    image::Array{Int32}
+    type_shapes::Vector{Any}### TODO: Fix this type
+    ConfigurationData() = new(0, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing)
+end
+
+function validate(data::ParticleData)
+    """Validate all attributes.
+
+    Convert every array attribute to a `numpy.ndarray` of the proper
+    type and check that all attributes have the correct dimensions.
+
+    Ignore any attributes that are ``None``.
+
+    Warning:
+        Array attributes that are not contiguous numpy arrays will be
+        replaced with contiguous numpy arrays of the appropriate type.
+    """
+    #logger.debug('Validating ParticleData')
+
+    if !isnothing(data.position) && size(data.position)!=(self.N, 3)
+        self.position = reshape(data.position,(self.N, 3))
+    end
+    if !isnothing(data.orientation) && size(data.orientation)!=(self.N, 4)
+        self.orientation = reshape(data.orientation,(self.N, 4))
+    end
+    ### TODO: These checks should be unnecessary
+    #=if !isnothing(data.typeid)
+        data.typeid = self.typeid.reshape([self.N])
+    end
+    if !isnothing(data.mass)
+        self.mass = self.mass.reshape([self.N])
+    if self.charge is not None:
+        self.charge = self.charge.reshape([self.N])
+    if self.diameter is not None:
+        self.diameter = self.diameter.reshape([self.N])
+    if self.body is not None:
+        self.body = self.body.reshape([self.N])
+    =#
+
+    if !isnothing(data.moment_inertia) && size(data.moment_inertia)!=(self.N, 3)
+        data.moment_inertia = reshape(data.moment_inertia, (self.N, 3))
+    end
+    if !isnothing(data.velocity) && size(data.velocity)!=(self.N, 3)
+        data.velocity = reshape(data.velocity, (self.N, 3))
+    end
+    if !isnothing(data.velocity) && size(data.velocity)!=(self.N, 4)
+        data.angmom = reshape(data.angmom, (self.N, 4))
+    end
+    if !isnothing(data.image) && size(data.image)!=(self.N, 3)
+        data.image = reshape(data.image, (self.N, 3))
     end
 
-    #logger.debug('reading frame ' + str(idx) + ' from: ' + str(self.file))
-
-    if isnothing(traj.initial_frame) && idx != 0:
-        read_frame(traj, 0)
-
-    frame = Frame()
-    # read configuration first
-    if chunk_exists(traj.file, frame=idx, name="configuration/step"):
-        step_arr = read_chunk(traj.file , frame=idx, name="configuration/step")
-        frame.configuration.step = step_arr[0]
-    else
-        if ~isnothing(traj.initial_frame)
-            frame.configuration.step = traj.initial_frame.configuration.step
-        else
-            frame.configuration.step = frame.configuration._default_value["step"]
-        end
+    if !isnothing(data.types) && (length(Set(data.types))!= length(data.types)) 
+        throw(ArgumentError("Type names must be unique in $(typeof(data))."))
     end
+    return nothing
+end
 
-    if chunk_exists(traj.file, frame=idx, name="configuration/dimensions")
-        dimensions_arr = read_chunk(traj,frame=idx, name="configuration/dimensions")
-        frame.configuration.dimensions = dimensions_arr[0]
-    else
-        if ~isnothing(traj.initial_frame)
-            frame.configuration.dimensions = traj.initial_frame.configuration.dimensions
-        else
-            frame.configuration.dimensions = frame.configuration._default_value["dimensions"]
-        end
+mutable struct BondData{M<:Tuple} <: StructType
+    """Store bond data chunks.
+
+    Use the `Frame.bonds`, `Frame.angles`, `Frame.dihedrals`,
+    `Frame.impropers`, and `Frame.pairs` attributes to access the bond
+    topology.
+
+    Instances resulting from file read operations will always store array
+    quantities in `numpy.ndarray` objects of the defined types. User created
+    frames may provide input data that can be converted to a `numpy.ndarray`.
+
+    See Also:
+        `hoomd.State` for a full description of how HOOMD interprets this
+        data.
+
+    Note:
+
+        *M* varies depending on the type of bond. `BondData` represents all
+        types of topology connections.
+
+        ======== ===
+        Type     *M*
+        ======== ===
+        Bond      2
+        Angle     3
+        Dihedral  4
+        Improper  4
+        Pair      2
+        ======== ===
+
+    Attributes:
+        N (int): Number of bonds/angles/dihedrals/impropers/pairs in the
+          frame
+          (:chunk:`bonds/N`, :chunk:`angles/N`, :chunk:`dihedrals/N`,
+          :chunk:`impropers/N`, :chunk:`pairs/N`).
+
+        types (list[str]): Names of the particle types
+          (:chunk:`bonds/types`, :chunk:`angles/types`,
+          :chunk:`dihedrals/types`, :chunk:`impropers/types`,
+          :chunk:`pairs/types`).
+
+        typeid ((*N*,) `numpy.ndarray` of ``numpy.uint32``):
+          Bond type id (:chunk:`bonds/typeid`,
+          :chunk:`angles/typeid`, :chunk:`dihedrals/typeid`,
+          :chunk:`impropers/typeid`, :chunk:`pairs/types`).
+
+        group ((*N*, *M*) `numpy.ndarray` of ``numpy.uint32``):
+          Tags of the particles in the bond (:chunk:`bonds/group`,
+          :chunk:`angles/group`, :chunk:`dihedrals/group`,
+          :chunk:`impropers/group`, :chunk:`pairs/group`).
+    """
+    N::UInt32
+    types::Union{Vector{String}, Nothing}
+    typeid::Union{Vector{UInt32},Nothing}
+    group::Union{Array{Int32}, Nothing}
+    #BondData(M::Integer)= new{(M)}(UInt32(0), nothing, nothing, nothing)
+end
+
+function getM(data::BondData{Tuple{M}})
+    ### TODO: Simplify!!!
+    T = typeof(data) ### this needs to know the information already
+    tmp = Meta.parse(String(Symbol(T)))
+    return tmp.args[2].args[2]
+end
+
+function validate(data::BondData{M})
+    """Validate all attributes.
+
+    Convert every array attribute to a `numpy.ndarray` of the proper
+    type and check that all attributes have the correct dimensions.
+
+    Ignore any attributes that are ``None``.
+
+    Warning:
+        Array attributes that are not contiguous numpy arrays will be
+        replaced with contiguous numpy arrays of the appropriate type.
+    """
+    #logger.debug('Validating BondData')
+
+    ### TODO: Check should be unnecessary
+    #if self.typeid is not None:
+    #    self.typeid = self.typeid.reshape([self.N])
+    
+    if !isnothing(data.group) && size(data.group)!=(self.N, getM(data))
+        data.group = reshape(data.group, (self.N, getM(data)))
     end
-
-    if chunk_exists(traj.fileframe=idx, name="configuration/box")
-        frame.configuration.box = read_chunk(traj.file,frame=idx, name="configuration/box")
-    else
-        if ~isnothing(traj.initial_frame)
-            frame.configuration.box = traj.initial_frame.configuration.box
-        else
-            frame.configuration.box = frame.configuration._default_value["box"]
-        end
+    if !isnothing(data.types) && (length(Set(data.types))!= length(data.types)) 
+        throw(ArgumentError("Type names must be unique in $(typeof(data))."))
     end
+    return nothing
+end
 
-    # then read all groups that have N, types, etc...
-    for path in ["particles","bonds","angles","dihedrals","impropers","constraints","pairs"]
 
-        container = getproperty(frame, Symbol(path))
-        if ~isnothing(traj_initial_frame)
-            initial_frame_container = getproperty(traj.initial_frame, Symbol(path))
-        end
+mutable struct ConstraintData <: StructType
+    """Store constraint data.
 
-        container.N = 0
-        if chunk_exists(traj.file, frame=idx, name=path * '/N')
-            N_arr = read_chunk(traj.file, frame=idx, name=path * '/N')
-            container.N = N_arr[0]
-        else
-            if ~isnothing(traj.initial_frame)
-                container.N = initial_frame_container.N
-            end
-        end
+    Use the `Frame.constraints` attribute to access the constraints.
 
-        # type names
-        if 'types' in container._default_value:
-            if chunk_exists(traj.file, frame=idx, name=path * "/types")
-                tmp = read_chunk(traj.file, frame=idx, name=path * "/types")
-                #tmp = tmp.view(dtype=numpy.dtype((bytes, tmp.shape[1])))
-                #tmp = tmp.reshape([tmp.shape[0]])
-                container.types = list(a.decode('UTF-8') for a in tmp)
-            else
-                if ~isnothing(traj.initial_frame)
-                    container.types = initial_frame_container.types
-                else
-                    container.types = container._default_value["types"]
-                end
-            end
-        end
+    Instances resulting from file read operations will always store array
+    quantities in `numpy.ndarray` objects of the defined types. User created
+    frames may provide input data that can be converted to a `numpy.ndarray`.
 
-        # type shapes
-        if ("type_shapes" in container._default_value && path == "particles")
-            if chunk_exists(traj.file, frame=idx, name=path * "/type_shapes")
-                tmp = read_chunk(traj.file, frame=idx, name=path * "/type_shapes")
-                #tmp = tmp.view(dtype=numpy.dtype((bytes, tmp.shape[1])))
-                #tmp = tmp.reshape([tmp.shape[0]])
-                #container.type_shapes =  list(json.loads(json_string.decode('UTF-8')     for json_string in tmp)
-            else
-                if ~isnothing(traj.initial_frame)
-                    container.type_shapes = initial_frame_container.type_shapes
-                else
-                    container.type_shapes = container._default_value["type_shapes"]
-                end
-            end
-        end
+    See Also:
+        `hoomd.State` for a full description of how HOOMD interprets this
+        data.
 
-        for name in container._default_value
-            if name in ("N", "types", "type_shapes") continue end
+    Attributes:
+        N (int): Number of constraints in the frame (:chunk:`constraints/N`).
 
-            # per particle/bond quantities
-            if chunk_exists(traj.file, frame=idx, name=path * '/' + name)
-                container.__dict__[name] = read_chunk(traj.file
-                    frame=idx, name=path + '/' + name)
-            else
-                if isnothing(traj.initial_frame) &&  initial_frame_container.N == container.N
-                    # read default from initial frame
-                    container.__dict__[name] = \
-                        initial_frame_container.__dict__[name]
-                else
-                    # initialize from default value
-                    #tmp = numpy.array([container._default_value[name]])
-                    tmp = zeros([container._default_value[name]])
+        value ((*N*, ) `numpy.ndarray` of ``numpy.float32``):
+            Constraint length (:chunk:`constraints/value`).
 
-                    s = list(tmp.shape)
-                    s[0] = container.N
-                    container.__dict__[name] = numpy.empty(shape=s, dtype=tmp.dtype)
-                    container.__dict__[name][:] = tmp
-                end
-                container.__dict__[name].flags.writeable = false
-            end
-        end
+        group ((*N*, *2*) `numpy.ndarray` of ``numpy.uint32``):
+            Tags of the particles in the constraint
+            (:chunk:`constraints/group`).
+    """
+    M::UInt32
+    N::UInt32
+    value::Vector{Float32}
+    group::Union{Array{Int32}, Nothing}
+    ConstraintData() = new(2,0,0, nothing)
+end
 
-    # read state data
-    for state in frame._valid_state
-        if chunk_exists(traj.file, frame=idx, name="state/" * state)
-            frame.state[state] = read_chunk(traj.file, frame=idx, name="state/" * state)
-        end
+function validate(data::ConstraintData)
+    """Validate all attributes.
+
+    Convert every array attribute to a `numpy.ndarray` of the proper
+    type and check that all attributes have the correct dimensions.
+
+    Ignore any attributes that are ``None``.
+
+    Warning:
+        Array attributes that are not contiguous numpy arrays will be
+        replaced with contiguous numpy arrays of the appropriate type.
+    """
+    #logger.debug('Validating ConstraintData')
+    # check should be unnecessary
+    #if self.value is not None:
+    #    self.value = self.value.reshape([self.N])
+    if !isnothing(data.group)
+        data.group = reshape(data.group, (data.N, data.M))
     end
+    return nothing
+end
 
-    # read log data
-    logged_data_names = find_matching_chunk_names(traj.file, "log/")
-    for log in logged_data_names
-        if chunk_exists(traj.file, frame=idx, name=log)
-            frame.log[log[4:]] = self.file.read_chunk(frame=idx, name=log)
-        else
-            if ~isnothing(traj.initial_frame)
-                frame.log[log[4:]] = self._initial_frame.log[log[4:]]
-            end
-        end
-    end
 
-    # store initial frame
-    if ~isnothing(traj.initial_frame) && idx == 0:
-        self._initial_frame = frame
+#Union{SubType{StructType}, Nothing} , should remove first Any if possible
+# the whole thing should cause type instability....
+default_values = Dict{Tuple{String, Any}, Any}(
+("step", nothing)=> UInt64(0),
+("dimensions", nothing ) => zeros(UInt8, 3),
+("box", nothing ) =>  [1f0, 1f0, 1f0, 0f0, 0f0, 0f0], 
+("N", nothing ) => UInt32, 
+("group", nothing) => zero(Int32), 
+("group", BondData{Tuple{2}} ) => zeros(Int32,2), 
+("group", BondData{Tuple{3}} ) => zeros(Int32,3), 
+("group", BondData{Tuple{4}} ) => zeros(Int32,4), 
+("types", ParticleData ) => ["A"], 
+("typeid", ParticleData ) => zeros(Float32,1), 
+("types", nothing ) => [], 
+("typeid", nothing ) => zero(UInt32), 
+("mass", nothing ) => one(Float32), 
+("charge", nothing ) => zero(Float32), 
+("diameter", nothing ) => one(Float32), 
+("body", nothing ) => -one(Int32), 
+("moment_inertia", nothing ) => zeros(Float32, 3), 
+("position", nothing ) =>  zeros(Float32, 3), 
+("orientation", nothing ) => [1f0, 0f0, 0f0,0f0], 
+("velocity", nothing ) => zeros(Float32, 3), 
+("angmom", nothing ) => zeros(Float32, 4), 
+("image", nothing ) => zeros(Float32, 3), 
+("type_shapes", nothing ) => Vector{Dict{Any, Any}}(), 
+("value", nothing ) => zero(Float32) 
+)
 
-    return frame
+
+function get_default(str::String, Struct::S) where {S<:Union{StructType, Nothing}}
+    ### getter that gets specialised default before universal default
+    return get(default_values, (str, S), default_values[(str, nothing)])
 end
