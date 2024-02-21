@@ -216,7 +216,6 @@ function read_chunk(file::GSDFILE, frame::I, name::String) where {I<:Integer}
     
     if gsd_type == libgsd.GSD_TYPE_UINT8
         data_type=UInt8
-        #data_array = zeros(UInt8 ,(index_entry.N, index_entry.M))
     elseif gsd_type == libgsd.GSD_TYPE_UINT16
         data_type=UInt16
         #data_array = zeros(UInt16,(index_entry.N, index_entry.M))
