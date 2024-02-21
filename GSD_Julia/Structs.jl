@@ -20,6 +20,10 @@ mutable struct ConfigurationData <: StructType
     ConfigurationData() = new(nothing, nothing, nothing)
 end
 
+function get_container_names(data::ConfigurationData)
+    return Symbol.(["step", "dimensions", "box"])
+end
+
 function set_box!(data::ConfigurationData, Box::Vector{Float32}) 
     if (length(Box)==6)
         data.box .=Box
@@ -138,6 +142,10 @@ mutable struct ParticleData <: StructType
     ConfigurationData() = new(0, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing)
 end
 
+function get_container_names(data::ParticleData)
+    return Symbol.(["typeid", "mass", "charge", "diameter", "body", "moment_inertia", "position", "orientation", "velocity", "angmom", "image"])
+end
+
 function validate(data::ParticleData)
     """Validate all attributes.
 
@@ -249,6 +257,10 @@ mutable struct BondData{M<:Tuple} <: StructType
     BondData(M::Integer)= new{Tuple{M}}(UInt32(0), nothing, nothing, nothing)
 end
 
+function get_container_names(data::BondData{Any})
+    return Symbol.(["typeid", "group"])
+end
+
 function getM(data::BondData{Tuple{M}})
     ### TODO: Simplify!!!
     T = typeof(data) ### this needs to know the information already
@@ -312,6 +324,10 @@ mutable struct ConstraintData <: StructType
     value::Union{Vector{Float32}, Nothing}
     group::Union{Array{Int32}, Nothing}
     ConstraintData() = new(2,0,nothing, nothing)
+end
+
+function get_container_names(data::ConstraintData)
+    return Symbol.(["value", "group"])
 end
 
 function validate(data::ConstraintData)
@@ -444,21 +460,21 @@ function validate(frame::Frame)
     end
 
     if "hpmc/sphere/radius" in keys(frame.state)
-        frame.state["hpmc/sphere/radius"] = Float32.(frame.state["hpmc/sphere/radius"][:NT])
+        frame.state["hpmc/sphere/radius"] = Float32.(frame.state["hpmc/sphere/radius"][1:NT])
     end
 
     if "hpmc/sphere/orientable" in keys(frame.state)
-        frame.state["hpmc/sphere/orientable"] = UInt8.(frame.state["hpmc/sphere/orientable"][:NT])
+        frame.state["hpmc/sphere/orientable"] = UInt8.(frame.state["hpmc/sphere/orientable"][1:NT])
     end
 
     if "hpmc/ellipsoid/a" in keys(frame.state)
-        frame.state["hpmc/ellipsoid/a"] = Float32.(frame.state["hpmc/ellipsoid/a"][:NT])
-        frame.state["hpmc/ellipsoid/b"] = Float32.(frame.state["hpmc/ellipsoid/b"][:NT])
-        frame.state["hpmc/ellipsoid/c"] = Float32.(frame.state["hpmc/ellipsoid/c"][:NT])
+        frame.state["hpmc/ellipsoid/a"] = Float32.(frame.state["hpmc/ellipsoid/a"][1:NT])
+        frame.state["hpmc/ellipsoid/b"] = Float32.(frame.state["hpmc/ellipsoid/b"][1:NT])
+        frame.state["hpmc/ellipsoid/c"] = Float32.(frame.state["hpmc/ellipsoid/c"][1:NT])
     end
 
     if "hpmc/convex_polyhedron/N" in keys(frame.state)
-        frame.state["hpmc/convex_polyhedron/N"] = UInt32.(frame.state["hpmcconvex_polyhedron/N"][:NT])
+        frame.state["hpmc/convex_polyhedron/N"] = UInt32.(frame.state["hpmcconvex_polyhedron/N"][1:NT])
         sumN = sum(frame.state["hpmc/convex_polyhedron/N"])
         frame.state["hpmc/convex_polyhedron/vertices"] = reshape(Float32.(frame.state["hpmc/convex_polyhedron/vertices"]), (sumN, 3))
     end
