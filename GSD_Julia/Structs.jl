@@ -14,9 +14,9 @@ mutable struct ConfigurationData <: StructType
             :math:`L_z` in `box`. When :math:`L_z = 0` dimensions will default
             to 2, otherwise 3. User set values always take precedence.
     """
-    step::UInt64
-    dimensions::Vector{UInt8}
-    box::Vector{Float32}
+    step::Union{UInt64, Nothing}
+    dimensions::Union{Vector{UInt8}, Nothing}
+    box::Union{Vector{Float32}, Nothing}
     ConfigurationData() = new(nothing, nothing, nothing)
 end
 
@@ -122,18 +122,18 @@ mutable struct ParticleData <: StructType
             visualizing particle types (:chunk:`particles/type_shapes`).
     """
     N::UInt32
-    types::Vector{String}
-    typeid::Vector{UInt32}
-    mass::Vector{Float32}
-    charge::Vector{Float32}
-    diameter::Vector{Float32}
-    body::Vector{Int32}
-    moment_inertia::Array{Float32}
-    position::Array{Float32}
-    orientation::Array{Float32}
-    velocity::Array{Float32}
-    angmom::Array{Float32}
-    image::Array{Int32}
+    types::Union{Vector{String}, Nothing}
+    typeid::Union{Vector{UInt32}, Nothing}
+    mass::Union{Vector{Float32}, Nothing}
+    charge::Union{Vector{Float32}, Nothing}
+    diameter::Union{Vector{Float32}, Nothing}
+    body::Union{Vector{Int32}, Nothing}
+    moment_inertia::Union{Array{Float32}, Nothing}
+    position::Union{Array{Float32}, Nothing}
+    orientation::Union{Array{Float32}, Nothing}
+    velocity::Union{Array{Float32}, Nothing}
+    angmom::Union{Array{Float32}, Nothing}
+    image::Union{Array{Int32}, Nothing}
     type_shapes::Vector{Any}### TODO: Fix this type
     ConfigurationData() = new(0, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing)
 end
@@ -246,7 +246,7 @@ mutable struct BondData{M<:Tuple} <: StructType
     types::Union{Vector{String}, Nothing}
     typeid::Union{Vector{UInt32},Nothing}
     group::Union{Array{Int32}, Nothing}
-    #BondData(M::Integer)= new{(M)}(UInt32(0), nothing, nothing, nothing)
+    BondData(M::Integer)= new{Tuple{M}}(UInt32(0), nothing, nothing, nothing)
 end
 
 function getM(data::BondData{Tuple{M}})
@@ -309,9 +309,9 @@ mutable struct ConstraintData <: StructType
     """
     M::UInt32
     N::UInt32
-    value::Vector{Float32}
+    value::Union{Vector{Float32}, Nothing}
     group::Union{Array{Int32}, Nothing}
-    ConstraintData() = new(2,0,0, nothing)
+    ConstraintData() = new(2,0,nothing, nothing)
 end
 
 function validate(data::ConstraintData)
@@ -373,7 +373,7 @@ function get_default(str::String, Struct::S) where {S<:Union{StructType, Nothing
 end
 
 
-default_valid_state = Vector{String}(['hpmc/integrate/d','hpmc/integrate/a','hpmc/sphere/radius','hpmc/sphere/orientable','hpmc/ellipsoid/a','hpmc/ellipsoid/b','hpmc/ellipsoid/c','hpmc/convex_polyhedron/N','hpmc/convex_polyhedron/vertices','hpmc/convex_spheropolyhedron/N','hpmc/convex_spheropolyhedron/vertices','hpmc/convex_spheropolyhedron/sweep_radius','hpmc/convex_polygon/N','hpmc/convex_polygon/vertices','hpmc/convex_spheropolygon/N','hpmc/convex_spheropolygon/vertices','hpmc/convex_spheropolygon/sweep_radius','hpmc/simple_polygon/N','hpmc/simple_polygon/vertices'])
+default_valid_state = Vector{String}(["hpmc/integrate/d","hpmc/integrate/a","hpmc/sphere/radius","hpmc/sphere/orientable","hpmc/ellipsoid/a","hpmc/ellipsoid/b","hpmc/ellipsoid/c","hpmc/convex_polyhedron/N","hpmc/convex_polyhedron/vertices","hpmc/convex_spheropolyhedron/N","hpmc/convex_spheropolyhedron/vertices","hpmc/convex_spheropolyhedron/sweep_radius","hpmc/convex_polygon/N","hpmc/convex_polygon/vertices","hpmc/convex_spheropolygon/N","hpmc/convex_spheropolygon/vertices","hpmc/convex_spheropolygon/sweep_radius","hpmc/simple_polygon/N","hpmc/simple_polygon/vertices"])
 
 mutable struct Frame
     """System state at one point in time.
