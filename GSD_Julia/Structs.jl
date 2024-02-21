@@ -416,138 +416,82 @@ end
 
 
 function validate(frame::Frame)
-        """Validate all contained frame data."""
-        #logger.debug('Validating Frame')
+    """Validate all contained frame data."""
+    #logger.debug('Validating Frame')
 
-        frame.configuration.validate()
-        frame.particles.validate()
-        frame.bonds.validate()
-        frame.angles.validate()
-        frame.dihedrals.validate()
-        frame.impropers.validate()
-        frame.constraints.validate()
-        frame.pairs.validate()
+    frame.configuration.validate()
+    frame.particles.validate()
+    frame.bonds.validate()
+    frame.angles.validate()
+    frame.dihedrals.validate()
+    frame.impropers.validate()
+    frame.constraints.validate()
+    frame.pairs.validate()
 
-        # validate HPMC state
-        if !isnothing(frame.particles.types)
-            NT = length(self.particles.types)
-        else
-            NT = 1
-        end
+    # validate HPMC state
+    if !isnothing(frame.particles.types)
+        NT = length(self.particles.types)
+    else
+        NT = 1
+    end
 
-        if "hpmc/integrate/d" in keys(frame.state)
-            frame.state["hpmc/integrate/d"] = Float64(frame.state["hpmc/integrate/d"])
-        end
+    if "hpmc/integrate/d" in keys(frame.state)
+        frame.state["hpmc/integrate/d"] = Float64(frame.state["hpmc/integrate/d"])
+    end
 
-        if "hpmc/integrate/a" in keys(frame.state)
-            frame.state["hpmc/integrate/a"] = Float64(frame.state["hpmc/integrate/a"])
-        end
+    if "hpmc/integrate/a" in keys(frame.state)
+        frame.state["hpmc/integrate/a"] = Float64(frame.state["hpmc/integrate/a"])
+    end
 
-        if "hpmc/sphere/radius" in keys(frame.state)
-            frame.state["hpmc/sphere/radius"] = Float32.(frame.state["hpmc/sphere/radius"][:NT])
-        end
+    if "hpmc/sphere/radius" in keys(frame.state)
+        frame.state["hpmc/sphere/radius"] = Float32.(frame.state["hpmc/sphere/radius"][:NT])
+    end
 
-        if "hpmc/sphere/orientable" in keys(frame.state)
-            frame.state["hpmc/sphere/orientable"] = UInt8.(frame.state["hpmc/sphere/orientable"][:NT])
-        end
+    if "hpmc/sphere/orientable" in keys(frame.state)
+        frame.state["hpmc/sphere/orientable"] = UInt8.(frame.state["hpmc/sphere/orientable"][:NT])
+    end
 
-        if "hpmc/ellipsoid/a" in keys(frame.state)
-            frame.state["hpmc/ellipsoid/a"] = Float32.(frame.state["hpmc/ellipsoid/a"][:NT])
-            frame.state["hpmc/ellipsoid/b"] = Float32.(frame.state["hpmc/ellipsoid/b"][:NT])
-            frame.state["hpmc/ellipsoid/c"] = Float32.(frame.state["hpmc/ellipsoid/c"][:NT])
-        end
+    if "hpmc/ellipsoid/a" in keys(frame.state)
+        frame.state["hpmc/ellipsoid/a"] = Float32.(frame.state["hpmc/ellipsoid/a"][:NT])
+        frame.state["hpmc/ellipsoid/b"] = Float32.(frame.state["hpmc/ellipsoid/b"][:NT])
+        frame.state["hpmc/ellipsoid/c"] = Float32.(frame.state["hpmc/ellipsoid/c"][:NT])
+    end
 
-        if "hpmc/convex_polyhedron/N" in keys(frame.state)
-            frame.state["hpmc/convex_polyhedron/N"] = UInt32.(frame.state["hpmcconvex_polyhedron/N"][:NT])
-            sumN = sum(frame.state["hpmc/convex_polyhedron/N"])
-            frame.state["hpmc/convex_polyhedron/vertices"] = reshape(Float32.(frame.state['hpmc/convex_polyhedron/vertices']), (sumN, 3))
-        end
+    if "hpmc/convex_polyhedron/N" in keys(frame.state)
+        frame.state["hpmc/convex_polyhedron/N"] = UInt32.(frame.state["hpmcconvex_polyhedron/N"][:NT])
+        sumN = sum(frame.state["hpmc/convex_polyhedron/N"])
+        frame.state["hpmc/convex_polyhedron/vertices"] = reshape(Float32.(frame.state["hpmc/convex_polyhedron/vertices"]), (sumN, 3))
+    end
 
-        if 'hpmc/convex_spheropolyhedron/N' in self.state:
-            self.state['hpmc/convex_spheropolyhedron/N'] = \
-                numpy.ascontiguousarray(
-                    self.state['hpmc/convex_spheropolyhedron/N'],
-                    dtype=numpy.uint32)
-            self.state['hpmc/convex_spheropolyhedron/N'] = \
-                self.state['hpmc/convex_spheropolyhedron/N'].reshape([NT])
-            sumN = numpy.sum(self.state['hpmc/convex_spheropolyhedron/N'])
+    if "hpmc/convex_spheropolyhedron/N" in keys(frame.state)
+        frame.state["hpmc/convex_spheropolyhedron/N"] =  UInt32.(frame.state["hpmc/convex_spheropolyhedron/N"][1:NT])
+        sumN = sum(frame.state["hpmc/convex_spheropolyhedron/N"])
+        frame.state["hpmc/convex_spheropolyhedron/sweep_radius"] = Float32.(frame.state["hpmc/convex_spheropolyhedron/sweep_radius"][1:NT])
+        frame.state["hpmc/convex_spheropolyhedron/vertices"] =reshape(Float32.(frame.state["hpmc/convex_spheropolyhedron/vertices"]), (sumN, 3))
+    end
 
-            self.state['hpmc/convex_spheropolyhedron/sweep_radius'] = \
-                numpy.ascontiguousarray(
-                    self.state['hpmc/convex_spheropolyhedron/sweep_radius'],
-                    dtype=numpy.float32)
-            self.state['hpmc/convex_spheropolyhedron/sweep_radius'] = \
-                self.state[
-                    'hpmc/convex_spheropolyhedron/sweep_radius'].reshape([NT])
+    if "hpmc/convex_polygon/N" in keys(frame.state)
+        frame.state["hpmc/convex_polygon/N"] = UInt32.(frame.state["hpmc/convex_polygon/N"][1:NT])
+        sumN = sum(frame.state["hpmc/convex_polygon/N"])
+        frame.state["hpmc/convex_polygon/vertices"] =reshape(Float32.(frame.state["hpmc/convex_polygon/vertices"]),(sumN, 2))
+    end
 
-            self.state['hpmc/convex_spheropolyhedron/vertices'] = \
-                numpy.ascontiguousarray(
-                    self.state['hpmc/convex_spheropolyhedron/vertices'],
-                    dtype=numpy.float32)
-            self.state['hpmc/convex_spheropolyhedron/vertices'] = \
-                self.state[
-                    'hpmc/convex_spheropolyhedron/vertices'].reshape([sumN, 3])
+    if "hpmc/convex_spheropolygon/N" in keys(frame.state)
+        frame.state["hpmc/convex_spheropolygon/N"] = UInt32.(frame.state["hpmc/convex_spheropolygon/N"][1:NT])
+        sumN = sum(frame.state["hpmc/convex_spheropolygon/N"])
+        frame.state["pmc/convex_spheropolygon/sweep_radius"] = Float32.(frame.state["hpmc/convex_spheropolygon/sweep_radius"][1:NT])
+        frame.state["hpmc/convex_spheropolygon/vertices"] = reshape(Float32.(frame.state["hpmc/convex_spheropolygon/vertices"]), (sumN, 2))
+    end
 
-        if 'hpmc/convex_polygon/N' in self.state:
-            self.state['hpmc/convex_polygon/N'] = \
-                numpy.ascontiguousarray(self.state['hpmc/convex_polygon/N'],
-                                        dtype=numpy.uint32)
-            self.state['hpmc/convex_polygon/N'] = \
-                self.state['hpmc/convex_polygon/N'].reshape([NT])
-            sumN = numpy.sum(self.state['hpmc/convex_polygon/N'])
+    if "hpmc/simple_polygon/N" in keys(frame.state)
+        frame.state["hpmc/simple_polygon/N"] =UInt32.(frame.state["hpmc/simple_polygon/N"][1:NT])
+        sumN = sum(frame.state["hpmc/simple_polygon/N"])
+        frame.state["hpmc/simple_polygon/vertices"] = reshape(Float32.(frame.state["hpmc/simple_polygon/vertices"]),(sumN, 2))
+    end
 
-            self.state['hpmc/convex_polygon/vertices'] = \
-                numpy.ascontiguousarray(
-                    self.state['hpmc/convex_polygon/vertices'],
-                    dtype=numpy.float32)
-            self.state['hpmc/convex_polygon/vertices'] = \
-                self.state['hpmc/convex_polygon/vertices'].reshape([sumN, 2])
-
-        if 'hpmc/convex_spheropolygon/N' in self.state:
-            self.state['hpmc/convex_spheropolygon/N'] = \
-                numpy.ascontiguousarray(
-                    self.state['hpmc/convex_spheropolygon/N'],
-                    dtype=numpy.uint32)
-            self.state['hpmc/convex_spheropolygon/N'] = \
-                self.state['hpmc/convex_spheropolygon/N'].reshape([NT])
-            sumN = numpy.sum(self.state['hpmc/convex_spheropolygon/N'])
-
-            self.state['hpmc/convex_spheropolygon/sweep_radius'] = \
-                numpy.ascontiguousarray(
-                    self.state['hpmc/convex_spheropolygon/sweep_radius'],
-                    dtype=numpy.float32)
-            self.state['hpmc/convex_spheropolygon/sweep_radius'] = \
-                self.state[
-                    'hpmc/convex_spheropolygon/sweep_radius'].reshape([NT])
-
-            self.state['hpmc/convex_spheropolygon/vertices'] = \
-                numpy.ascontiguousarray(
-                    self.state['hpmc/convex_spheropolygon/vertices'],
-                    dtype=numpy.float32)
-            self.state['hpmc/convex_spheropolygon/vertices'] = \
-                self.state[
-                    'hpmc/convex_spheropolygon/vertices'].reshape([sumN, 2])
-
-        if 'hpmc/simple_polygon/N' in self.state:
-            self.state['hpmc/simple_polygon/N'] = \
-                numpy.ascontiguousarray(self.state['hpmc/simple_polygon/N'],
-                                        dtype=numpy.uint32)
-            self.state['hpmc/simple_polygon/N'] = \
-                self.state['hpmc/simple_polygon/N'].reshape([NT])
-            sumN = numpy.sum(self.state['hpmc/simple_polygon/N'])
-
-            self.state['hpmc/simple_polygon/vertices'] = \
-                numpy.ascontiguousarray(
-                    self.state['hpmc/simple_polygon/vertices'],
-                    dtype=numpy.float32)
-            self.state['hpmc/simple_polygon/vertices'] = \
-                self.state[
-                    'hpmc/simple_polygon/vertices'].reshape([sumN, 2])
-
-        for k in self.state:
-            if k not in self._valid_state:
-                raise RuntimeError('Not a valid state: ' + k)
-            end
+    for k in keys(frame.state)
+        if !(k in keys(frame.state))
+            throw(ArgumentError("Not a valid state: $k"))
         end
     end
 end
