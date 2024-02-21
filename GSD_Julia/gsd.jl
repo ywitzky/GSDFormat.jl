@@ -1,7 +1,9 @@
 include("./libgsd_wrapper.jl")
 
 using Base.Libc, CBinding
+import Base.close
 
+gsd_version = "3.1.1"
 
 ### basically a julia copy of fl.pyx
 
@@ -84,19 +86,19 @@ function Init_GSDFILE(name::AbstractString,mode::AbstractString,application::Abs
 
     c_name = ""
     c_application = ""
-    c_schema = ""
+    c_schema = removeNonASCII(schema)
     c_schema_version = ""
     gsd_version = schema_version #(0,0) ### "???"
 
 
     if overwrite
-        if application == Nothing
+        if isnothing(application)
             throw(ArgumentError("Provide application when creating a file"))
         end
-        if schema == Nothing 
+        if isnothing(schema) 
             throw(ArgumentError("Provide schema when creating a file"))
         end
-        if schema_version == Nothing
+        if isnothing(schema_version)
             throw(ArgumentError("Provide schema_version when creating a file"))
         end
 
@@ -113,6 +115,7 @@ function Init_GSDFILE(name::AbstractString,mode::AbstractString,application::Abs
 
         #schema_e = schema.encode('utf-8')
         c_schema = removeNonASCII(schema)
+
 
         c_schema_version = libgsd.gsd_make_version(schema_version[0],
                                                     schema_version[1])
@@ -137,16 +140,18 @@ function Init_GSDFILE(name::AbstractString,mode::AbstractString,application::Abs
             throw(ErrorException("file $(name) has incorrect schema: $(schema)"))
         end
     end
-    
+
     schema_truncated = Vector{UInt8}(schema_truncated )
     c_application    = Vector{UInt8}(c_application )
     c_schema         = Vector{UInt8}(c_schema )
     c_schema_version = Vector{UInt8}(c_schema_version )
 
-    return GSDFILE{I}(name,mode,gsd_version,application,schema_version,0,0,0,  c_name,c_application,c_schema,c_schema_version,schema_truncated,gsd_handle, true)
+    nframes = libgsd.gsd_get_nframes(gsd_handle)
+
+    return GSDFILE{I}(name,mode,gsd_version,application,schema_version,nframes,0,0,  c_name,c_application,c_schema,c_schema_version,schema_truncated,gsd_handle, true)
 end
 
-function read_chunk(file::GSDFILE, frame::I, name::String) where {I<:Integer}
+function read_chunk(file::GSDFILE{I}; frame::I, name::String) where {I<:Integer}
     """read_chunk(frame, name)
 
     Read a data chunk from the file and return it as a array.
@@ -218,31 +223,22 @@ function read_chunk(file::GSDFILE, frame::I, name::String) where {I<:Integer}
         data_type=UInt8
     elseif gsd_type == libgsd.GSD_TYPE_UINT16
         data_type=UInt16
-        #data_array = zeros(UInt16,(index_entry.N, index_entry.M))
     elseif gsd_type == libgsd.GSD_TYPE_UINT32
         data_type=UInt32
-        #data_array = zeros(UInt32,(index_entry.N, index_entry.M))
     elseif gsd_type == libgsd.GSD_TYPE_UINT64
         data_type=UInt64
-        #data_array = zeros(UInt64,(index_entry.N, index_entry.M))
     elseif gsd_type == libgsd.GSD_TYPE_INT8
         data_type=Int8
-        #data_array = zeros(Int8 ,(index_entry.N, index_entry.M))
     elseif gsd_type == libgsd.GSD_TYPE_INT16
         data_type=Int16
-        #data_array = zeros(Int16,(index_entry.N, index_entry.M))
     elseif gsd_type == libgsd.GSD_TYPE_INT32
         data_type=Int32
-        #data_array = zeros(Int32,(index_entry.N, index_entry.M))
     elseif gsd_type == libgsd.GSD_TYPE_INT64
         data_type=Int64
-        #data_array = zeros(Int64,(index_entry.N, index_entry.M))
     elseif gsd_type == libgsd.GSD_TYPE_FLOAT
         data_type=Float32
-        #data_array = zeros(Float32,(index_entry.N, index_entry.M))
     elseif gsd_type == libgsd.GSD_TYPE_DOUBLE
         data_type=Float64
-        #data_array = zeros(Float64,(index_entry.N, index_entry.M))
     else
         throw(ErrorException("invalid type for chunk: $(name)"))
     end
@@ -268,7 +264,7 @@ function read_chunk(file::GSDFILE, frame::I, name::String) where {I<:Integer}
     end
 end
 
-function chunk_exists(file::GSDFILE, frame::I, name::String) where {I<:Integer}
+function chunk_exists(file::GSDFILE{I}; frame::I, name::String) where {I<:Integer}
     """chunk_exists(frame, name)
 
     Test if a chunk exists.
@@ -319,7 +315,7 @@ function chunk_exists(file::GSDFILE, frame::I, name::String) where {I<:Integer}
 
 end
 
-    
+#=
 function open_gsd(name, mode="r")
     """Open a hoomd schema GSD file.
 
@@ -360,10 +356,10 @@ function open_gsd(name, mode="r")
 
     gsdfileobj = open_gsd_(String(name),mode; application="gsd.hoomd ", schema="hoomd", schema_version=(1, 4))
     return gsdfileobj
-end
+end=#
 
 
-function open_gsd_(name::AbstractString, mode::AbstractString; application=None, schema=None, schema_version=None)
+function open_gsd(name::AbstractString, mode::AbstractString; application=nothing, schema=nothing, schema_version=nothing)
     """open(name, mode, application=None, schema=None, schema_version=None)
 
     :py:func:`open` opens a GSD file and returns a :py:class:`GSDFile` instance.
