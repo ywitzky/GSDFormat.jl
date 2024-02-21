@@ -15,7 +15,7 @@ mutable struct ConfigurationData <: StructType
             to 2, otherwise 3. User set values always take precedence.
     """
     step::Union{UInt64, Nothing}
-    dimensions::Union{Vector{UInt8}, Nothing}
+    dimensions::Union{UInt8, Nothing}
     box::Union{Vector{Float32}, Nothing}
     ConfigurationData() = new(nothing, nothing, nothing)
 end
@@ -126,7 +126,7 @@ mutable struct ParticleData <: StructType
             visualizing particle types (:chunk:`particles/type_shapes`).
     """
     N::UInt32
-    types::Union{Vector{String}, Nothing}
+    types::Union{Vector{Char}, Nothing}
     typeid::Union{Vector{UInt32}, Nothing}
     mass::Union{Vector{Float32}, Nothing}
     charge::Union{Vector{Float32}, Nothing}
@@ -139,7 +139,7 @@ mutable struct ParticleData <: StructType
     angmom::Union{Array{Float32}, Nothing}
     image::Union{Array{Int32}, Nothing}
     type_shapes::Vector{Any}### TODO: Fix this type
-    ConfigurationData() = new(0, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing)
+    ParticleData() = new(0, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing)
 end
 
 function get_container_names(data::ParticleData)
@@ -251,24 +251,24 @@ mutable struct BondData{M<:Tuple} <: StructType
           :chunk:`impropers/group`, :chunk:`pairs/group`).
     """
     N::UInt32
-    types::Union{Vector{String}, Nothing}
+    types::Union{Vector{Char}, Nothing}
     typeid::Union{Vector{UInt32},Nothing}
     group::Union{Array{Int32}, Nothing}
     BondData(M::Integer)= new{Tuple{M}}(UInt32(0), nothing, nothing, nothing)
 end
 
-function get_container_names(data::BondData{Any})
+function get_container_names(data::BondData{<:Tuple}) #where {A<:Tuple{<:Integer}}
     return Symbol.(["typeid", "group"])
 end
 
-function getM(data::BondData{Tuple{M}})
+function getM(data::BondData{Tuple{M}}) where {M<:Integer}
     ### TODO: Simplify!!!
     T = typeof(data) ### this needs to know the information already
     tmp = Meta.parse(String(Symbol(T)))
     return tmp.args[2].args[2]
 end
 
-function validate(data::BondData{M})
+function validate(data::BondData{Tuple{M}})  where {M<:Integer}
     """Validate all attributes.
 
     Convert every array attribute to a `numpy.ndarray` of the proper
@@ -357,21 +357,21 @@ end
 # the whole thing should cause type instability....
 default_values = Dict{Tuple{String, Any}, Any}(
 ("step", nothing)=> UInt64(0),
-("dimensions", nothing ) => zeros(UInt8, 3),
+("dimensions", nothing ) => zero(UInt8),
 ("box", nothing ) =>  [1f0, 1f0, 1f0, 0f0, 0f0, 0f0], 
 ("N", nothing ) => UInt32, 
-("group", nothing) => zero(Int32), 
+("group", nothing) => zeros(Int32,1), 
 ("group", BondData{Tuple{2}} ) => zeros(Int32,2), 
 ("group", BondData{Tuple{3}} ) => zeros(Int32,3), 
 ("group", BondData{Tuple{4}} ) => zeros(Int32,4), 
-("types", ParticleData ) => ["A"], 
+("types", ParticleData ) => ['A'], 
 ("typeid", ParticleData ) => zeros(Float32,1), 
 ("types", nothing ) => [], 
-("typeid", nothing ) => zero(UInt32), 
-("mass", nothing ) => one(Float32), 
-("charge", nothing ) => zero(Float32), 
-("diameter", nothing ) => one(Float32), 
-("body", nothing ) => -one(Int32), 
+("typeid", nothing ) => zeros(UInt32,1), 
+("mass", nothing ) => ones(Float32,1), 
+("charge", nothing ) => zeros(Float32,1), 
+("diameter", nothing ) => ones(Float32, 1), 
+("body", nothing ) => -ones(Int32, 1), 
 ("moment_inertia", nothing ) => zeros(Float32, 3), 
 ("position", nothing ) =>  zeros(Float32, 3), 
 ("orientation", nothing ) => [1f0, 0f0, 0f0,0f0], 
@@ -379,7 +379,7 @@ default_values = Dict{Tuple{String, Any}, Any}(
 ("angmom", nothing ) => zeros(Float32, 4), 
 ("image", nothing ) => zeros(Float32, 3), 
 ("type_shapes", nothing ) => Vector{Dict{Any, Any}}(), 
-("value", nothing ) => zero(Float32) 
+("value", nothing ) => zeros(Float32,1) 
 )
 
 
@@ -427,7 +427,7 @@ mutable struct Frame
     state::Dict{String, Any}
     log::Dict{String, Any}
     valid_state::Vector{String}
-    Frame() = new(ConfigurationData(), ParticleData(), BondDate(2),  BondDate(3),  BondDate(4),  BondDate(4), ConstraintData(), BondData(2), Dict{String, Any}(), Dict{String, Any}(), default_valid_state)
+    Frame() = new(ConfigurationData(), ParticleData(), BondData(2),  BondData(3),  BondData(4),  BondData(4), ConstraintData(), BondData(2), Dict{String, Any}(), Dict{String, Any}(), default_valid_state)
 end
 
 
