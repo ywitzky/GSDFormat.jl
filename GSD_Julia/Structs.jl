@@ -1,4 +1,16 @@
+import Base: ==
+
 abstract type StructType end
+
+@inline function ==(A::ST, B::ST)::Bool where {ST<:StructType}
+    for field in fieldnames(A)
+        if getproperty(A, field)!=getproperty(B, field)
+            return false
+        end
+    end
+    return true
+end
+
 
 mutable struct ConfigurationData <: StructType
     """Store configuration data.
