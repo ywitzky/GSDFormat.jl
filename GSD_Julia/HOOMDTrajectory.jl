@@ -274,3 +274,42 @@ function open(name::AbstractString, mode="r")
 
     return HOOMDTrajectory(gsdfileobj)
 end
+
+function _should_write(file::HOOMDTrajectory{<:Integer}, path::String, name::String, frame<:Integer) where {I<:Integer}
+    """Test if we should write a given data chunk.
+
+    Args:
+        path (str): Path part of the data chunk.
+        name (str): Name part of the data chunk.
+        frame (:py:class:`Frame`): Frame data is from.
+
+    Returns:
+        False if the data matches that in the initial frame. False
+        if the data matches all default values. True otherwise.
+    """        
+    container = getproperty(frame, Symbol(path))
+    data = getproperty(container, Symbol(name))
+
+    if !isnothing(file.initial_frame)
+        initial_container = getattr(file.initial_frame, Symbol(path))
+        initial_data = getattr(initial_container, Symbol(name))
+        if initial_data==data
+            #logger.debug('skipping data chunk, matches frame 0: ' + path + '/' + name)
+            return false
+        end
+    end
+
+    matches_default_value = false
+    if name == "types"
+        matches_default_value = (data == get_default(name, container))
+    else
+        matches_default_value = numpy.array_equiv(
+            data, container._default_value[name])
+    end
+
+    if matches_default_value && !chunk_exists(file, frame=0, name="$path/$name")
+        #logger.debug('skipping data chunk, default value: ' + path + '/' + name)
+        return false
+    end
+    return true
+end
