@@ -313,3 +313,70 @@ function _should_write(file::HOOMDTrajectory{<:Integer}, path::String, name::Str
     end
     return true
 end
+
+function append(traj::HOOMDTrajectory, frame::Frame)
+    """Append a frame to a hoomd gsd file.
+
+    Args:
+        frame (:py:class:`Frame`): Frame to append.
+
+    Write the given frame to the file at the current frame and increase
+    the frame counter. Do not write any fields that are ``None``. For all
+    non-``None`` fields, scan them and see if they match the initial frame
+    or the default value. If the given data differs, write it out to the
+    frame. If it is the same, do not write it out as it can be instantiated
+    either from the value at the initial frame or the default value.
+    """
+    #logger.debug('Appending frame to hoomd trajectory: ' + str(self.file))
+
+    frame.validate()
+
+    # want the initial frame specified as a reference to detect if chunks
+    # need to be written
+    if isnothing(traj.initial_frame) && len(self) > 0
+        _read_frame(traj, 0)
+    end
+
+    for path in ["particles","bonds","angles","dihedrals","impropers","constraints","pairs"]
+        container = geproperty(frame, Symbol(path))
+        for name in get_container_names(container)
+            if _should_write(traj, path, name, frame)
+                #logger.debug('writing data chunk: ' + path + '/' + name)
+                data = getproperty(container, Symbol(name))
+
+                if name == "N"
+                    data = Vector{UInt32}(data)
+                end
+                if name == "step"
+                    data = Vector{UInt64}(data)
+                end
+                if name == "dimensions"
+                    data = Vector{UInt8}(data)
+                end
+                if name in ("types", "type_shapes")
+                    # TODO needs to be tested
+                    #if name == "type_shapes"
+                    #    data = [JSON.dumps(shape_dict) for shape_dict in data]
+                    #end
+                    #wid = max(length(w) for w in data) + 1
+                    #b = numpy.array(data, dtype=numpy.dtype((bytes, wid)))
+                    #data = b.view(dtype=numpy.int8).reshape(len(b), wid)
+                    data = Vector{Char}(JSON.dumps(shape_dict) for shape_dict in data)
+                write_chunk(traj.file, "$path/$name", data)
+                end
+            end
+        end
+    end
+
+    # write state data
+    for (state, data) in frame.state
+        write_chunk(traj.file, "state/$state", data)
+    end
+
+    # write log data
+    for (log, data) in frame.log
+        write_chunk(traj.file, "log/$log", data)
+    end
+
+    end_frame(traj.file)
+end
