@@ -1,5 +1,5 @@
 module gsd
 
-greet() = print("Hello World!")
+include("./HOOMDTrajectory.jl")
 
 end # module gsd
