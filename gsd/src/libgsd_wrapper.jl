@@ -7,7 +7,8 @@ using Libdl, CBinding
 
 #libgsdfile= Libdl.find_library("libgsd.so", vcat(Base.DL_LOAD_PATH, ["/uni-mainz.de/homes/ywitzky/phdscripts/GSD/GSD_Julia/gsd/"]) )
 
-libpath= Libdl.find_library("libgsd.so", vcat(Base.DL_LOAD_PATH, ["$(@__DIR__)/gsd/"]) )
+path="$(@__DIR__)/../gsd_cpp/gsd/"
+libpath= Libdl.find_library("libgsd.so", vcat(Base.DL_LOAD_PATH, [path]) )
 
 const c"int8_t" = Int8
 const c"int16_t" = Int16
@@ -21,7 +22,7 @@ const c"size_t" = Csize_t
 const c"ssize_t" = Cssize_t
 const c"NULL"= Nothing
 
-path="$(@__DIR__)/gsd/"
+
 c`-std=c17 -Wall -I$(path) -L$(path) -I$(path)gsd.c -L$(libpath) -llibgsd.so`
 
 
