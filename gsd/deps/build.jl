@@ -14,6 +14,8 @@ else
     LibGit2.clone("https://github.com/glotzerlab/gsd.git", cpp_dir)
 end
 
+### TODO: move into Scratch space using Scratch.jl
+### TODO: remove implicit gcc dependency
 println("GSD: Compile libgsd.so")
 cd("$cpp_dir/gsd/")
 run(`$cmake CMakeLists.txt`)
