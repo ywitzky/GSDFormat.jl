@@ -175,7 +175,7 @@ gsd_create(filename::String, application::String, schema::String, schemaVersion:
 gsd_create_and_open(gsd_handle::Gsd_handle, filename::String, application::String, schema::String, schemaVersion::UInt32,flags::Gsd_open_flag,exclusive_create::Int32) = @ccall libgsdfile.gsd_create_and_open(pointer_from_objref(Ref(gsd_handle))::Ptr{Gsd_handle}, filename::Cstring,application::Cstring,schema::Cstring, schemaVersion::Cuint,flags::Gsd_open_flag,exclusive_create::Int32)::Int32
 =#
 
-using Printf
+#using Printf
 
 removeNonASCII_(str::AbstractString) = String([Char(c) for c in str if isascii(c)])
 #=
