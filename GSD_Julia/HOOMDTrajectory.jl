@@ -6,7 +6,7 @@ include("./Structs.jl")
 include("./gsd.jl")
 
 using JSON
-import Base: size, getindex, iterate
+import .Base: size, getindex, isdone, iterate, length, eltype
 
 mutable struct HOOMDTrajectory{I<:Integer}# where {I<:Integer}
     file::GSDFILE{I}
@@ -102,6 +102,17 @@ function iterate(traj::HOOMDTrajectory{<:Integer}, state::Integer)
     end
 end
 
+@inline function length(traj::HOOMDTrajectory{<:Integer})
+    return size(traj)
+end
+
+function eltype(traj::HOOMDTrajectory{<:Integer})
+    return Type{Frame}
+end
+
+function Base.isdone(traj::HOOMDTrajectory{<:Integer}, state::Integer)
+    return state==traj.file.nframes
+end
 
 function _read_frame(traj::HOOMDTrajectory{<:Integer}, idx::Integer) 
     """Read the frame at the given index from the file.
