@@ -3,7 +3,7 @@
 module GSD
 
 include("./Structs.jl")
-include("./gsd.jl")
+include("./gsd_base.jl")
 
 using JSON
 import .Base: size, getindex, isdone, iterate, length, eltype
