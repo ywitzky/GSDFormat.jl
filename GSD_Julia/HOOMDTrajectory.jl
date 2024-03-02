@@ -1,5 +1,7 @@
 ### copies class definitions from hoomd.py
 
+module GSD
+
 include("./Structs.jl")
 include("./gsd.jl")
 
@@ -275,7 +277,7 @@ function open(name::AbstractString, mode="r")
     return HOOMDTrajectory(gsdfileobj)
 end
 
-function _should_write(file::HOOMDTrajectory{<:Integer}, path::String, name::String, frame<:Integer) where {I<:Integer}
+function _should_write(file::HOOMDTrajectory{I}, path::String, name::String, frame::Integer) where {I<:Integer}
     """Test if we should write a given data chunk.
 
     Args:
@@ -379,4 +381,8 @@ function append(traj::HOOMDTrajectory, frame::Frame)
     end
 
     end_frame(traj.file)
+end
+
+
+
 end
