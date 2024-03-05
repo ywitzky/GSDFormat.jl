@@ -246,10 +246,10 @@ function _read_frame(traj::HOOMDTrajectory{<:Integer}, idx::Integer)
     logged_data_names = find_matching_chunk_names(traj.file, "log/")
     for log in logged_data_names
         if chunk_exists(traj.file, frame=idx, name=log)
-            frame.log[log[4:end]] = self.file.read_chunk(frame=idx, name=log)
+            frame.log[log[4:end]] = read_chunk(traj.file, frame=idx, name=log)
         else
             if ~isnothing(traj.initial_frame)
-                frame.log[log[4:end]] = self._initial_frame.log[log[4:end]]
+                frame.log[log[4:end]] = traj._initial_frame.log[log[4:end]]
             end
         end
     end
