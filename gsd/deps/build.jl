@@ -1,20 +1,17 @@
-using LibGit2, CMake
+using LibGit2, CMake, Scratch
 
-println(pathof(LibGit2))
-#folder_dir=strip(pathof(GSD), "src/LibGit2.jl")
-#cpp_dir = "$(folder_dir)gsd_cpp/"
-
-cpp_dir = "/uni-mainz.de/homes/ywitzky/Code_Projects/gsd/gsd/gsd_cpp"
+### create unique id since it will use main in build step but the according module in wrapper otherwise
+global cpp_dir = get_scratch!(Base.UUID(0),"gsd_cpp")
 println(cpp_dir)
-
-if isdir(cpp_dir)
+println(@__MODULE__)
+println("Length: $(length(readdir(cpp_dir)))")
+if !isempty(readdir(cpp_dir))
     println("GSD: Delete $cpp_dir if github should be checked for updates.")
 else
     println("GSD: https://github.com/glotzerlab/gsd.git.")
     LibGit2.clone("https://github.com/glotzerlab/gsd.git", cpp_dir)
 end
 
-### TODO: move into Scratch space using Scratch.jl
 ### TODO: remove implicit gcc dependency
 println("GSD: Compile libgsd.so")
 cd("$cpp_dir/gsd/")
