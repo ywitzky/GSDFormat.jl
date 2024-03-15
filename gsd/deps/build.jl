@@ -2,9 +2,7 @@ using LibGit2, CMake, Scratch
 
 ### create unique id since it will use main in build step but the according module in wrapper otherwise
 global cpp_dir = get_scratch!(Base.UUID(0),"gsd_cpp")
-println(cpp_dir)
-println(@__MODULE__)
-println("Length: $(length(readdir(cpp_dir)))")
+
 if !isempty(readdir(cpp_dir))
     println("GSD: Delete $cpp_dir if github should be checked for updates.")
 else
@@ -12,7 +10,7 @@ else
     LibGit2.clone("https://github.com/glotzerlab/gsd.git", cpp_dir)
 end
 
-### TODO: remove implicit gcc dependency
+### TODO: remove implicit gcc & make dependency
 println("GSD: Compile libgsd.so")
 cd("$cpp_dir/gsd/")
 run(`$cmake CMakeLists.txt`)
