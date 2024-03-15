@@ -1,14 +1,11 @@
-# Copyright (c) 2016-2023 The Regents of the University of Michigan
-# Part of GSD, released under the BSD 2-Clause License.
-
 module libgsd
 
-using Libdl, CBinding
+using Libdl, CBinding, Scratch
 
-#libgsdfile= Libdl.find_library("libgsd.so", vcat(Base.DL_LOAD_PATH, ["/uni-mainz.de/homes/ywitzky/phdscripts/GSD/GSD_Julia/gsd/"]) )
-
-path="$(@__DIR__)/../gsd_cpp/gsd/"
-libpath= Libdl.find_library("libgsd.so", vcat(Base.DL_LOAD_PATH, [path]) )
+### use same unique id as in build step
+global cpp_dir = get_scratch!(Base.UUID(0), "gsd_cpp")
+path="$cpp_dir/gsd/"
+libpath= Libdl.find_library("libgsd.so", vcat(Base.DL_LOAD_PATH, [cpp_dir]) )
 
 const c"int8_t" = Int8
 const c"int16_t" = Int16
