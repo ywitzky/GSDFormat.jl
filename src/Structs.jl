@@ -39,7 +39,7 @@ end
 function set_box!(data::ConfigurationData, Box::Vector{Float32}) 
     if (length(Box)==6)
         data.box .=Box
-        if isnothing(self.dimensions)
+        if isnothing(data.dimensions)
             data.dimension = Box[3]==0 ? 2 : 3 
         end
     else
@@ -75,8 +75,8 @@ function validate(data::ConfigurationData)
     #logger.debug('Validating ConfigurationData')
     #=
     if !isnothing(data.box)
-        self.box = numpy.ascontiguousarray(self.box, dtype=numpy.float32)
-        self.box = self.box.reshape([6])
+        data.box = numpy.ascontiguousarray(data.box, dtype=numpy.float32)
+        data.box = data.box.reshape([6])
     end=#
     return nothing
 end
@@ -172,37 +172,37 @@ function validate(data::ParticleData)
     """
     #logger.debug('Validating ParticleData')
 
-    if !isnothing(data.position) && size(data.position)!=(self.N, 3)
-        self.position = reshape(data.position,(self.N, 3))
+    if !isnothing(data.position) && size(data.position)!=(data.N, 3)
+        data.position = reshape(data.position,(data.N, 3))
     end
-    if !isnothing(data.orientation) && size(data.orientation)!=(self.N, 4)
-        self.orientation = reshape(data.orientation,(self.N, 4))
+    if !isnothing(data.orientation) && size(data.orientation)!=(data.N, 4)
+        data.orientation = reshape(data.orientation,(data.N, 4))
     end
     ### TODO: These checks should be unnecessary
     #=if !isnothing(data.typeid)
-        data.typeid = self.typeid.reshape([self.N])
+        data.typeid = data.typeid.reshape([data.N])
     end
     if !isnothing(data.mass)
-        self.mass = self.mass.reshape([self.N])
-    if self.charge is not None:
-        self.charge = self.charge.reshape([self.N])
-    if self.diameter is not None:
-        self.diameter = self.diameter.reshape([self.N])
-    if self.body is not None:
-        self.body = self.body.reshape([self.N])
+        data.mass = data.mass.reshape([data.N])
+    if data.charge is not None:
+        data.charge = data.charge.reshape([data.N])
+    if data.diameter is not None:
+        data.diameter = data.diameter.reshape([data.N])
+    if data.body is not None:
+        data.body = data.body.reshape([data.N])
     =#
 
-    if !isnothing(data.moment_inertia) && size(data.moment_inertia)!=(self.N, 3)
-        data.moment_inertia = reshape(data.moment_inertia, (self.N, 3))
+    if !isnothing(data.moment_inertia) && size(data.moment_inertia)!=(data.N, 3)
+        data.moment_inertia = reshape(data.moment_inertia, (data.N, 3))
     end
-    if !isnothing(data.velocity) && size(data.velocity)!=(self.N, 3)
-        data.velocity = reshape(data.velocity, (self.N, 3))
+    if !isnothing(data.velocity) && size(data.velocity)!=(data.N, 3)
+        data.velocity = reshape(data.velocity, (data.N, 3))
     end
-    if !isnothing(data.velocity) && size(data.velocity)!=(self.N, 4)
-        data.angmom = reshape(data.angmom, (self.N, 4))
+    if !isnothing(data.velocity) && size(data.velocity)!=(data.N, 4)
+        data.angmom = reshape(data.angmom, (data.N, 4))
     end
-    if !isnothing(data.image) && size(data.image)!=(self.N, 3)
-        data.image = reshape(data.image, (self.N, 3))
+    if !isnothing(data.image) && size(data.image)!=(data.N, 3)
+        data.image = reshape(data.image, (data.N, 3))
     end
 
     if !isnothing(data.types) && (length(Set(data.types))!= length(data.types)) 
@@ -263,7 +263,7 @@ mutable struct BondData{M<:Tuple} <: StructType
           :chunk:`impropers/group`, :chunk:`pairs/group`).
     """
     N::UInt32
-    types::Union{Vector{Char}, Nothing}
+    types::Union{Vector{String}, Nothing}
     typeid::Union{Vector{UInt32},Nothing}
     group::Union{Array{Int32}, Nothing}
     BondData(M::Integer)= new{Tuple{M}}(UInt32(0), nothing, nothing, nothing)
@@ -273,14 +273,14 @@ function get_container_names(data::BondData{<:Tuple}) #where {A<:Tuple{<:Integer
     return Symbol.(["typeid", "group"])
 end
 
-function getM(data::BondData{Tuple{M}}) where {M<:Integer}
+function getM(data::BondData{<:Tuple})# where {M<:Integer}
     ### TODO: Simplify!!!
     T = typeof(data) ### this needs to know the information already
     tmp = Meta.parse(String(Symbol(T)))
     return tmp.args[2].args[2]
 end
 
-function validate(data::BondData{Tuple{M}})  where {M<:Integer}
+function validate(data::BondData{<:Tuple})# where {M<:Integer}
     """Validate all attributes.
 
     Convert every array attribute to a `numpy.ndarray` of the proper
@@ -293,14 +293,21 @@ function validate(data::BondData{Tuple{M}})  where {M<:Integer}
         replaced with contiguous numpy arrays of the appropriate type.
     """
     #logger.debug('Validating BondData')
-
-    ### TODO: Check should be unnecessary
-    #if self.typeid is not None:
-    #    self.typeid = self.typeid.reshape([self.N])
-    
-    if !isnothing(data.group) && size(data.group)!=(self.N, getM(data))
-        data.group = reshape(data.group, (self.N, getM(data)))
+    ### not initialised data
+    if isnothing(data.types) && isnothing(data.typeid) && isnothing(data.group)
+        return nothing
     end
+    ### TODO: Check should be unnecessary
+    #if data.typeid is not None:
+    #    data.typeid = data.typeid.reshape([data.N])
+    
+    if !isnothing(data.group) && size(data.group)!=(data.N, getM(data))
+        data.group = reshape(data.group, (data.N, getM(data)))
+    end
+    println(data.types)
+    println(Set(data.types))
+    println(length(data.types))
+    println(length(Set(data.types)))
     if !isnothing(data.types) && (length(Set(data.types))!= length(data.types)) 
         throw(ArgumentError("Type names must be unique in $(typeof(data))."))
     end
@@ -356,8 +363,8 @@ function validate(data::ConstraintData)
     """
     #logger.debug('Validating ConstraintData')
     # check should be unnecessary
-    #if self.value is not None:
-    #    self.value = self.value.reshape([self.N])
+    #if data.value is not None:
+    #    data.value = data.value.reshape([data.N])
     if !isnothing(data.group)
         data.group = reshape(data.group, (data.N, data.M))
     end
@@ -395,7 +402,7 @@ default_values = Dict{Tuple{String, Any}, Any}(
 )
 
 
-function get_default(str::String, Struct::S) where {S<:Union{StructType, Nothing}}
+function get_default(str::String, Struct::S) where {S<:Union{ParticleData, BondData, StructType, Nothing}}
     ### getter that gets specialised default before universal default
     return get(default_values, (str, S), default_values[(str, nothing)])
 end
@@ -447,18 +454,18 @@ function validate(frame::Frame)
     """Validate all contained frame data."""
     #logger.debug('Validating Frame')
 
-    frame.configuration.validate()
-    frame.particles.validate()
-    frame.bonds.validate()
-    frame.angles.validate()
-    frame.dihedrals.validate()
-    frame.impropers.validate()
-    frame.constraints.validate()
-    frame.pairs.validate()
+    validate(frame.configuration)
+    validate(frame.particles)
+    validate(frame.bonds)
+    validate(frame.angles)
+    validate(frame.dihedrals)
+    validate(frame.impropers)
+    validate(frame.constraints)
+    validate(frame.pairs)
 
     # validate HPMC state
     if !isnothing(frame.particles.types)
-        NT = length(self.particles.types)
+        NT = length(frame.particles.types)
     else
         NT = 1
     end

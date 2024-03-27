@@ -32,7 +32,7 @@ function init_HOOMDTrajectory(file::GSDFILE{I}) where {I<:Integer}
 
     trajectory = HOOMDTrajectory{I}(file, nothing)
 
-    #logger.info('opening HOOMDTrajectory: ' + str(self.file))
+    #logger.info('opening HOOMDTrajectory: ' + str(file))
 
     if trajectory.file.c_schema !=  Vector{UInt8}("hoomd")
         throw(ArgumentError("GSD file is not a hoomd schema file: $(trajectory.file.name)"))
@@ -44,10 +44,10 @@ function init_HOOMDTrajectory(file::GSDFILE{I}) where {I<:Integer}
         valid = true
     end
     if !valid
-        throw(InitError("Incompatible hoomd schema version "* str(version) * " in: " * str(self.file)))
+        throw(InitError("Incompatible hoomd schema version "* str(version) * " in: " * str(file)))
     end
 
-    #logger.info('found ' + str(len(self)) + ' frames')
+    #logger.info('found ' + str(len(file)) + ' frames')
     return trajectory
 end
 
@@ -133,7 +133,7 @@ function _read_frame(traj::HOOMDTrajectory{<:Integer}, idx::Integer)
         throw(BoundsError([traj], [idx]))
     end
 
-    #logger.debug('reading frame ' + str(idx) + ' from: ' + str(self.file))
+    #logger.debug('reading frame ' + str(idx) + ' from: ' + str(traj))
 
     if isnothing(traj.initial_frame) && idx != 0
         _read_frame(traj, 0)
@@ -256,7 +256,7 @@ function _read_frame(traj::HOOMDTrajectory{<:Integer}, idx::Integer)
 
     # store initial frame
     if ~isnothing(traj.initial_frame) && idx == 0
-        self._initial_frame = frame
+        traj._initial_frame = frame
     end
 
     return frame
@@ -305,7 +305,7 @@ function open(name::AbstractString, mode="r")
     return HOOMDTrajectory(gsdfileobj)
 end
 
-function _should_write(file::HOOMDTrajectory{I}, path::String, name::String, frame::Integer) where {I<:Integer}
+function _should_write(file::HOOMDTrajectory{I}, path::String, name::Symbol, frame::Frame) where {I<:Integer}
     """Test if we should write a given data chunk.
 
     Args:
@@ -331,10 +331,13 @@ function _should_write(file::HOOMDTrajectory{I}, path::String, name::String, fra
 
     matches_default_value = false
     if name == "types"
-        matches_default_value = (data == get_default(name, container))
+        matches_default_value = (data == get_default(String(name), container))
     else
-        matches_default_value = numpy.array_equiv(
-            data, container._default_value[name])
+        default = get_default(String(name), container)
+        matches_default_value = sizeof(default) == sizeof(data)
+        if matches_default_value
+            matches_default_value = all( data .== get_default(String(name), container))
+        end
     end
 
     if matches_default_value && !chunk_exists(file, frame=0, name="$path/$name")
@@ -343,6 +346,55 @@ function _should_write(file::HOOMDTrajectory{I}, path::String, name::String, fra
     end
     return true
 end
+
+function end_frame(traj::HOOMDTrajectory)
+    """end_frame()
+
+    Complete writing the current frame. After calling :py:meth:`end_frame()`
+    future calls to :py:meth:`write_chunk()` will write to the **next**
+    frame in the file.
+
+    .. danger::
+        Call :py:meth:`end_frame()` to complete the current frame
+        **before** closing the file. If you fail to call
+        :py:meth:`end_frame()`, the last frame will not be written
+        to disk.
+
+    Example:
+        .. ipython:: python
+
+            f = gsd.fl.open(name='file.gsd', mode='w',
+                            application="My application",
+                            schema="My Schema", schema_version=[1,0])
+
+            f.write_chunk(name='chunk1',
+                        data=numpy.array([1,2,3,4], dtype=numpy.float32))
+            f.end_frame()
+            f.write_chunk(name='chunk1',
+                        data=numpy.array([9,10,11,12],
+                                        dtype=numpy.float32))
+            f.end_frame()
+            f.write_chunk(name='chunk1',
+                        data=numpy.array([13,14],
+                                        dtype=numpy.float32))
+            f.end_frame()
+            f.nframes
+            f.close()
+
+    """
+
+    if !traj.file.is_open
+        throw(UndefRefError("File is not open"))
+    end
+
+    #logger.debug('end frame: ' + self.name)
+
+    retval = libgsd.gsd_end_frame(traj.file.gsd_handle)
+
+    raise_on_error(retval, traj.file.name)
+    return nothing
+end
+
 
 function append(traj::HOOMDTrajectory, frame::Frame)
     """Append a frame to a hoomd gsd file.
@@ -357,18 +409,18 @@ function append(traj::HOOMDTrajectory, frame::Frame)
     frame. If it is the same, do not write it out as it can be instantiated
     either from the value at the initial frame or the default value.
     """
-    #logger.debug('Appending frame to hoomd trajectory: ' + str(self.file))
+    #logger.debug('Appending frame to hoomd trajectory: ' + str(file))
 
-    frame.validate()
+    validate(frame)
 
     # want the initial frame specified as a reference to detect if chunks
     # need to be written
-    if isnothing(traj.initial_frame) && len(self) > 0
+    if isnothing(traj.initial_frame) && length(traj) > 0
         _read_frame(traj, 0)
     end
 
     for path in ["particles","bonds","angles","dihedrals","impropers","constraints","pairs"]
-        container = geproperty(frame, Symbol(path))
+        container = getproperty(frame, Symbol(path))
         for name in get_container_names(container)
             if _should_write(traj, path, name, frame)
                 #logger.debug('writing data chunk: ' + path + '/' + name)
@@ -408,8 +460,9 @@ function append(traj::HOOMDTrajectory, frame::Frame)
         write_chunk(traj.file, "log/$log", data)
     end
 
-    end_frame(traj.file)
+    end_frame(traj)
 end
+
 
 
 

@@ -5,7 +5,7 @@ import Base.close
 
 gsd_version = "3.1.1"
 
-### basically a julia copy of fl.pyx
+### basically a julia copy of fl.pyx in the github of the glotzlab gsd code
 
 mutable struct GSDFILE{I<:Integer}
     name::String
@@ -19,11 +19,13 @@ mutable struct GSDFILE{I<:Integer}
     c_name::Vector{UInt8}
     c_application::Vector{UInt8}
     c_schema::Vector{UInt8}
-    c_schema_version::Vector{UInt8}
+    c_schema_version::UInt32
     schema_truncated::Vector{UInt8}
     gsd_handle::Base.RefValue{typeof(libgsd.gsd_handle())} ### Base.RefValue{libgsd.gsd_handle} is different for whatever reason.
     is_open::Bool
 end
+
+
 
 removeNonASCII(str::AbstractString) = Vector{UInt8}(String([Char(c) for c in str if isascii(c)]))
 
@@ -87,7 +89,7 @@ function Init_GSDFILE(name::AbstractString,mode::AbstractString,application::Abs
     c_name = ""
     c_application = ""
     c_schema = removeNonASCII(schema)
-    c_schema_version = ""
+    c_schema_version = libgsd.gsd_make_version(schema_version[1],schema_version[2]) ### returns UInt32
     gsd_version = schema_version #(0,0) ### "???"
 
 
@@ -116,10 +118,6 @@ function Init_GSDFILE(name::AbstractString,mode::AbstractString,application::Abs
         #schema_e = schema.encode('utf-8')
         c_schema = removeNonASCII(schema)
 
-
-        c_schema_version = libgsd.gsd_make_version(schema_version[0],
-                                                    schema_version[1])
-
         #with nogil:
         retval = libgsd.gsd_create_and_open(gsd_handle, c_name,c_application,c_schema, c_schema_version,c_flags,exclusive_create)
 
@@ -144,7 +142,7 @@ function Init_GSDFILE(name::AbstractString,mode::AbstractString,application::Abs
     schema_truncated = Vector{UInt8}(schema_truncated )
     c_application    = Vector{UInt8}(c_application )
     c_schema         = Vector{UInt8}(c_schema )
-    c_schema_version = Vector{UInt8}(c_schema_version )
+    c_schema_version = c_schema_version
 
     nframes = libgsd.gsd_get_nframes(gsd_handle)
 
@@ -534,7 +532,6 @@ function close(file::GSDFILE)
 
     return nothing
 end
-
 
 
 
