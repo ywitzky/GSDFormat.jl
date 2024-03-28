@@ -388,7 +388,6 @@ function end_frame(traj::HOOMDTrajectory)
     end
 
     #logger.debug('end frame: ' + self.name)
-
     retval = libgsd.gsd_end_frame(traj.file.gsd_handle)
 
     raise_on_error(retval, traj.file.name)
@@ -444,8 +443,8 @@ function append(traj::HOOMDTrajectory, frame::Frame)
                     #b = numpy.array(data, dtype=numpy.dtype((bytes, wid)))
                     #data = b.view(dtype=numpy.int8).reshape(len(b), wid)
                     data = Vector{Char}(JSON.dumps(shape_dict) for shape_dict in data)
-                write_chunk(traj.file, "$path/$name", data)
                 end
+                write_chunk(traj.file, "$path/$name", data)
             end
         end
     end
@@ -463,7 +462,12 @@ function append(traj::HOOMDTrajectory, frame::Frame)
     end_frame(traj)
 end
 
+function close(traj::HOOMDTrajectory)
+    """Close the file."""
 
+    close(traj.file)
+    #del self._initial_frame
+end
 
 
 end

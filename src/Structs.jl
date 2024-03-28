@@ -266,7 +266,7 @@ mutable struct BondData{M<:Tuple} <: StructType
     types::Union{Vector{String}, Nothing}
     typeid::Union{Vector{UInt32},Nothing}
     group::Union{Array{Int32}, Nothing}
-    BondData(M::Integer)= new{Tuple{M}}(UInt32(0), nothing, nothing, nothing)
+    BondData(M::Integer)= new{Tuple{M}}(UInt32(0), [], zeros(UInt32, 0),  zeros(UInt32, (0,4)))
 end
 
 function get_container_names(data::BondData{<:Tuple}) #where {A<:Tuple{<:Integer}}
@@ -304,10 +304,7 @@ function validate(data::BondData{<:Tuple})# where {M<:Integer}
     if !isnothing(data.group) && size(data.group)!=(data.N, getM(data))
         data.group = reshape(data.group, (data.N, getM(data)))
     end
-    println(data.types)
-    println(Set(data.types))
-    println(length(data.types))
-    println(length(Set(data.types)))
+
     if !isnothing(data.types) && (length(Set(data.types))!= length(data.types)) 
         throw(ArgumentError("Type names must be unique in $(typeof(data))."))
     end
