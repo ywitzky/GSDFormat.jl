@@ -37,7 +37,7 @@ function raise_on_error(retval, extra)
         extra: Extra string to pass along with the exception
     """
     if retval == libgsd.GSD_ERROR_IO
-        throw(ErrorException("GSD_ERROR_IO:,python error: \"Return a tuple for constructing an IOError.\""))
+        throw(ErrorException("GSD_ERROR_IO: \"Return a tuple for constructing an IOError.\""))
     elseif retval == libgsd.GSD_ERROR_NOT_A_GSD_FILE
         throw(ErrorException("Not a GSD file: " * extra))
     elseif retval == libgsd.GSD_ERROR_INVALID_GSD_FILE_VERSION
@@ -529,11 +529,106 @@ function close(file::GSDFILE)
         file.is_open = false
         raise_on_error(retval, file.name)
     end
-
     return nothing
 end
 
+function write_chunk(traj::GSDFILE, name::String, data::Nothing)
+    return nothing
+end
 
+function write_chunk(traj::GSDFILE, name::String, data::Array{T}) where {T<:Number}
+    """write_chunk(name, data)
+
+    Write a data chunk to the file. After writing all chunks in the
+    current frame, call :py:meth:`end_frame()`.
+
+    Args:
+        name (str): Name of the chunk
+        data: Data to write into the chunk. Must be a numpy
+            array, or array-like, with 2 or fewer
+            dimensions.
+
+    Warning:
+        :py:meth:`write_chunk()` will implicitly converts array-like and
+        non-contiguous numpy arrays to contiguous numpy arrays with
+        ``numpy.ascontiguousarray(data)``. This may or may not produce
+        desired data types in the output file and incurs overhead.
+
+    Example:
+        .. ipython:: python
+
+            f = gsd.fl.open(name='file.gsd', mode='w',
+                            application="My application",
+                            schema="My Schema", schema_version=[1,0])
+
+            f.write_chunk(name='float1d',
+                        data=numpy.array([1,2,3,4],
+                                        dtype=numpy.float32))
+            f.write_chunk(name='float2d',
+                        data=numpy.array([[13,14],[15,16],[17,19]],
+                                        dtype=numpy.float32))
+            f.write_chunk(name='double2d',
+                        data=numpy.array([[1,4],[5,6],[7,9]],
+                                        dtype=numpy.float64))
+            f.write_chunk(name='int1d',
+                        data=numpy.array([70,80,90],
+                                        dtype=numpy.int64))
+            f.end_frame()
+            f.nframes
+            f.close()
+    """
+
+    if ! traj.is_open
+        throw( ErrorException("File is not open"))
+    end
+
+    if length(size(data)) > 2
+        throw(ErrorException("GSD can only write 1 or 2 dimensional arrays: $name"))
+    end
+
+    N = size(data)[1]
+    M = 1
+    if length(size(data)) > 1
+        M = size(data)[2]
+    end
+
+    data_type = eltype(data)
+    if data_type == UInt8
+        gsd_type = libgsd.GSD_TYPE_UINT8
+    elseif data_type == UInt16
+        gsd_type = libgsd.GSD_TYPE_UINT16
+    elseif data_type == UInt32
+        gsd_type = libgsd.GSD_TYPE_UINT32
+    elseif data_type == UInt64
+        gsd_type = libgsd.GSD_TYPE_UINT64
+    elseif data_type == Int8
+        gsd_type = libgsd.GSD_TYPE_INT8
+    elseif data_type == Int16
+        gsd_type = libgsd.GSD_TYPE_INT16
+    elseif data_type == Int32
+        gsd_type = libgsd.GSD_TYPE_INT32
+    elseif data_type == Int64
+        gsd_type = libgsd.GSD_TYPE_INT64
+    elseif data_type == Float32
+        gsd_type = libgsd.GSD_TYPE_FLOAT
+    elseif data_type == Float64
+        gsd_type = libgsd.GSD_TYPE_DOUBLE
+    else
+        throw(ErrorException("invalid type for chunk: $name" + name))
+    end
+
+    #logger.debug('write chunk: ' + self.name + ' - ' + name)
+
+    c_name = removeNonASCII(name)
+    if length(size(data))>1
+        ### TODO improve memory allocation in permutedims
+        retval = libgsd.gsd_write_chunk(traj.gsd_handle, c_name,gsd_type,N, M, 0, vec(permutedims(data,(2, 1)))) ### convert from fortran style to c style, vecs lets the compiler interpret the matrix as a an vector
+    else
+        retval = libgsd.gsd_write_chunk(traj.gsd_handle, c_name,gsd_type,N, M, 0, data)
+    end
+
+    raise_on_error(retval, traj.name)
+end
 
 function get_nframes(gsdfileobj::GSDFILE)
     return libgsd.gsd_get_nframes(gsdfileobj.gsd_handle)
