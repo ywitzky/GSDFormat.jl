@@ -536,7 +536,7 @@ function write_chunk(traj::GSDFILE, name::String, data::Nothing)
     return nothing
 end
 
-function write_chunk(traj::GSDFILE, name::String, data::Array{T}) where {T<:Number}
+function write_chunk(traj::GSDFILE, name::String, data::Union{T, Array{T}}) where {T<:Number}
     """write_chunk(name, data)
 
     Write a data chunk to the file. After writing all chunks in the
@@ -577,20 +577,18 @@ function write_chunk(traj::GSDFILE, name::String, data::Array{T}) where {T<:Numb
             f.nframes
             f.close()
     """
+    data_size = size(data)
 
     if ! traj.is_open
         throw( ErrorException("File is not open"))
     end
 
-    if length(size(data)) > 2
+    if length(data_size) > 2
         throw(ErrorException("GSD can only write 1 or 2 dimensional arrays: $name"))
     end
 
-    N = size(data)[1]
-    M = 1
-    if length(size(data)) > 1
-        M = size(data)[2]
-    end
+    N = length(data_size)>=1 ? size(data)[1] : 1
+    M = length(data_size)>=2 ? size(data)[2] : 1
 
     data_type = eltype(data)
     if data_type == UInt8
@@ -618,11 +616,14 @@ function write_chunk(traj::GSDFILE, name::String, data::Array{T}) where {T<:Numb
     end
 
     #logger.debug('write chunk: ' + self.name + ' - ' + name)
-
     c_name = removeNonASCII(name)
-    if length(size(data))>1
+    if length(data_size)==0
+        retval = libgsd.gsd_write_chunk(traj.gsd_handle, c_name,gsd_type,N, M, 0, [data])
+    elseif length(data_size)>1
         ### TODO improve memory allocation in permutedims
         retval = libgsd.gsd_write_chunk(traj.gsd_handle, c_name,gsd_type,N, M, 0, vec(permutedims(data,(2, 1)))) ### convert from fortran style to c style, vecs lets the compiler interpret the matrix as a an vector
+        #retval = libgsd.gsd_write_chunk(traj.gsd_handle, c_name,gsd_type,N, M, 0, vec(data)) ### convert from fortran style to c style, vecs lets the compiler interpret the matrix as a an vector
+
     else
         retval = libgsd.gsd_write_chunk(traj.gsd_handle, c_name,gsd_type,N, M, 0, data)
     end
