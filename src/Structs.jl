@@ -138,7 +138,7 @@ mutable struct ParticleData <: StructType
             visualizing particle types (:chunk:`particles/type_shapes`).
     """
     N::UInt32
-    types::Union{Vector{Char}, Nothing}
+    types::Union{Vector{String}, Nothing}
     typeid::Union{Vector{UInt32}, Nothing}
     mass::Union{Vector{Float32}, Nothing}
     charge::Union{Vector{Float32}, Nothing}
@@ -155,7 +155,7 @@ mutable struct ParticleData <: StructType
 end
 
 function get_container_names(data::ParticleData)
-    return Symbol.(["typeid", "mass", "charge", "diameter", "body", "moment_inertia", "position", "orientation", "velocity", "angmom", "image"])
+    return Symbol.(["N", "types", "typeid", "mass", "charge", "diameter", "body", "moment_inertia", "position", "orientation", "velocity", "angmom", "image"])
 end
 
 function validate(data::ParticleData)
@@ -270,7 +270,7 @@ mutable struct BondData{M<:Tuple} <: StructType
 end
 
 function get_container_names(data::BondData{<:Tuple}) #where {A<:Tuple{<:Integer}}
-    return Symbol.(["typeid", "group"])
+    return Symbol.(["N", "typeid", "types", "group"])
 end
 
 function getM(data::BondData{<:Tuple})# where {M<:Integer}

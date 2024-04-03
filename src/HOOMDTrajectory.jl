@@ -340,7 +340,7 @@ function _should_write(file::HOOMDTrajectory{I}, path::String, name::Symbol, fra
         end
     end
 
-    if matches_default_value && !chunk_exists(file, frame=0, name="$path/$name")
+    if matches_default_value && !chunk_exists(file.file, frame=0, name="$path/$name")
         #logger.debug('skipping data chunk, default value: ' + path + '/' + name)
         return false
     end
@@ -418,7 +418,7 @@ function append(traj::HOOMDTrajectory, frame::Frame)
         _read_frame(traj, 0)
     end
 
-    for path in ["particles","bonds","angles","dihedrals","impropers","constraints","pairs"]
+    for path in ["configuration", "particles","bonds","angles","dihedrals","impropers","constraints","pairs"]
         container = getproperty(frame, Symbol(path))
         for name in get_container_names(container)
             if _should_write(traj, path, name, frame)
@@ -434,15 +434,15 @@ function append(traj::HOOMDTrajectory, frame::Frame)
                 if name == "dimensions"
                     data = Vector{UInt8}(data)
                 end
-                if name in ("types", "type_shapes")
-                    # TODO needs to be tested
-                    #if name == "type_shapes"
-                    #    data = [JSON.dumps(shape_dict) for shape_dict in data]
-                    #end
-                    #wid = max(length(w) for w in data) + 1
-                    #b = numpy.array(data, dtype=numpy.dtype((bytes, wid)))
-                    #data = b.view(dtype=numpy.int8).reshape(len(b), wid)
-                    data = Vector{Char}(JSON.dumps(shape_dict) for shape_dict in data)
+                if name in (Symbol("types"), Symbol("type_shapes"))
+                    ### TODO needs to be tested for type_shapes
+                    data = Vector{Vector{UInt8}}([Vector{UInt8}(length(shape_dict)==1 ? " $shape_dict" : shape_dict) for shape_dict in data]) ### TODO: fix the " $shape_dict", which is needed since 1 char strings wont work otherwise
+                    wid = maximum(length.(data))
+                    new_data = zeros(UInt8, (length(data), wid))
+                    for (i, d) in enumerate(data)
+                        new_data[i,1:length(d)] .= d
+                    end
+                    data = new_data
                 end
                 write_chunk(traj.file, "$path/$name", data)
             end
