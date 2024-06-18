@@ -1,5 +1,8 @@
 using LibGit2, CMake, Scratch
 
+### We only need to get the *c and *h files for CBinding. The compiled binaries/ the shared libary is taken from libgsd_jll that builds with BinaryBuilder for every support plattform besides windows.
+
+
 ### create unique id since it will use main in build step but the according module in wrapper otherwise
 global cpp_dir = get_scratch!(Base.UUID(0),"gsd_cpp")
 
@@ -11,11 +14,11 @@ else
 end
 
 ### TODO: remove implicit gcc & make dependency
-println("GSD: Compile libgsd.so")
-cd("$cpp_dir/gsd/")
-run(`$cmake CMakeLists.txt`)
-run(`make gsd.o`)
-run(`gcc -g -shared -o libgsd.so ./CMakeFiles/fl.dir/gsd.o`)
+#println("GSD: Compile libgsd.so")
+#cd("$cpp_dir/gsd/")
+#run(`$cmake CMakeLists.txt`)
+#run(`make gsd.o`)
+#run(`gcc -g -shared -o libgsd.so ./CMakeFiles/fl.dir/gsd.o`)
 
 include("../src/libgsd_wrapper.jl")
 
