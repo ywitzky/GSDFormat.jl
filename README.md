@@ -9,8 +9,6 @@ using Pkg
 Pkg.add("GSD")
 ```
 
-The build step in deps/build.jl implicitly requires 'make' and 'gcc'.
-
 ### Usage
 
 ```
@@ -23,6 +21,12 @@ end
 ```
 This library tries to be as close to the usage of the [original python](https://gsd.readthedocs.io/en/v3.2.1/hoomd-examples.html) implementation of the [gsd package](https://github.com/glotzerlab/gsd).
 
-### Warning
+### Support
 
-Not thoroughly tested on across different architectures and hoomd files. Tests need to be implemented.
+Windows is not support since gsd builds on unix calls such as pwrite etc. Plattforms that are supported can be found in the Binaries at [JuliaBinaryWrappers](https://github.com/JuliaBinaryWrappers/libgsd_jll.jl).
+
+
+### Warning 
+
+GSD special particle type "type_shapes" is untested as of now. 
+
