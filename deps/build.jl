@@ -1,4 +1,16 @@
-using LibGit2, CMake, Scratch
+#=
+
+using LibGit2, CMake, Scratch, Libdl
+
+### alternativ version
+using BinDeps
+@BinDeps.setup
+gsd = library_dependency("gsd", aliases = ["libgsd" "libnetcdf4"])
+
+using CondaBinDeps
+provides(CondaBinDeps.Manager, "libgsd", gsd)
+libpath= Libdl.find_library("libgsd.so" )
+
 
 ### create unique id since it will use main in build step but the according module in wrapper otherwise
 global cpp_dir = get_scratch!(Base.UUID(0),"gsd_cpp")
@@ -18,5 +30,5 @@ run(`make gsd.o`)
 run(`gcc -g -shared -o libgsd.so ./CMakeFiles/fl.dir/gsd.o`)
 
 include("../src/libgsd_wrapper.jl")
-
+=#
 

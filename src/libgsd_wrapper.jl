@@ -1,6 +1,6 @@
 module libgsd
 
-using Libdl, CBinding, Scratch
+using Libdl, CBinding, Scratch, libgsd_jll
 
 ### use same unique id as in build step
 global cpp_dir = get_scratch!(Base.UUID(0), "gsd_cpp")
@@ -20,8 +20,8 @@ const c"ssize_t" = Cssize_t
 const c"NULL"= Nothing
 
 
-c`-std=c17 -Wall -I$(path) -L$(path) -I$(path)gsd.c -L$(libpath) -llibgsd.so`
-
+#c`-std=c17 -Wall -I$(path) -L$(path) -I$(path)gsd.c -L$(libpath) -llibgsd.so`
+c`-std=c17 -Wall "-I$(libgsd_jll.artifact_dir)/include" -L$(libpath) -llibgsd.so`
 
 c"""
 #include <gsd.c>
