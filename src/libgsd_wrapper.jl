@@ -5,7 +5,7 @@ using Libdl, CBinding, Scratch, libgsd_jll
 ### use same unique id as in build step
 global cpp_dir = get_scratch!(Base.UUID(0), "gsd_cpp")
 path="$cpp_dir/gsd/"
-libpath= Libdl.find_library("libgsd.so", vcat(Base.DL_LOAD_PATH, [cpp_dir]) )
+libpath= Libdl.find_library("libgsd.so", Base.DL_LOAD_PATH)#[cpp_dir]) )
 
 const c"int8_t" = Int8
 const c"int16_t" = Int16
@@ -25,6 +25,8 @@ c`-std=c17 -Wall "-I$(libgsd_jll.artifact_dir)/include" -L$(libpath) -llibgsd.so
 
 c"""
 #include <gsd.c>
+c"""
+
 #include <gsd.h>
 """ji
 
