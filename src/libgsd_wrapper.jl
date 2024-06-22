@@ -1,11 +1,12 @@
 module libgsd
 
-using Libdl, CBinding, Scratch, libgsd_jll
+using Libdl, CBinding, libgsd_jll#,  Scratch, BinaryBuilder
 
 ### use same unique id as in build step
-global cpp_dir = get_scratch!(Base.UUID(0), "gsd_cpp")
-path="$cpp_dir/gsd/"
-libpath= Libdl.find_library("libgsd.so", Base.DL_LOAD_PATH)#[cpp_dir]) )
+
+#global cpp_dir = get_scratch!(Base.UUID(0), "gsd_cpp")
+#path="$cpp_dir/gsd/"
+libpath= Libdl.find_library("$(libgsd_jll.artifact_dir)", Base.DL_LOAD_PATH)#[cpp_dir]) )
 
 const c"int8_t" = Int8
 const c"int16_t" = Int16
@@ -21,14 +22,13 @@ const c"NULL"= Nothing
 
 
 #c`-std=c17 -Wall -I$(path) -L$(path) -I$(path)gsd.c -L$(libpath) -llibgsd.so`
-c`-std=c17 -Wall "-I$(libgsd_jll.artifact_dir)/include" -L$(libpath) -llibgsd.so`
+c`-std=c17 -Wall "-I$(libgsd_jll.artifact_dir)/include/gsd.h"  -llibgsd.so`
 
 c"""
-#include <gsd.c>
-c"""
-
 #include <gsd.h>
-"""ji
+c"""
+
+#include <gsd.c>
 
 function getNULL()::Cptr{Cvoid}
     return Cptr{Cvoid}(0x0000000000000000)
