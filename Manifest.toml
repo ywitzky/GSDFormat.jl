@@ -2,7 +2,7 @@
 
 julia_version = "1.9.3"
 manifest_format = "2.0"
-project_hash = "c054335cd3eb9994594313897c32933d36b07132"
+project_hash = "f322e2ba3e995ce71493783d6cae1e8ffab0bf3e"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -37,6 +37,18 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "TOML", "Zlib_jll", "libLLVM
 git-tree-sha1 = "124bb00d4ceace456054f17c7cb01e5c8195c609"
 uuid = "0ee61d77-7f21-5576-8119-9fcc46b10100"
 version = "14.0.6+4"
+
+[[deps.Conda]]
+deps = ["Downloads", "JSON", "VersionParsing"]
+git-tree-sha1 = "51cab8e982c5b598eea9c8ceaced4b58d9dd37c9"
+uuid = "8f4d0f93-b110-5947-807f-2305c1781a2d"
+version = "1.10.0"
+
+[[deps.CondaBinDeps]]
+deps = ["BinDeps", "Conda"]
+git-tree-sha1 = "25f750df2893991f2c9b18425bfac6f2ce855154"
+uuid = "a9693cdc-2bc8-5703-a9cd-1da358117377"
+version = "0.2.0"
 
 [[deps.Dates]]
 deps = ["Printf"]
@@ -185,6 +197,11 @@ uuid = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
 [[deps.Unicode]]
 uuid = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
 
+[[deps.VersionParsing]]
+git-tree-sha1 = "58d6e80b4ee071f5efd07fda82cb9fbe17200868"
+uuid = "81def892-9a0e-5fdd-b105-ffc91e053289"
+version = "1.3.0"
+
 [[deps.Zlib_jll]]
 deps = ["Libdl"]
 uuid = "83775a58-1f1d-513f-b197-d71354ab007a"
@@ -194,6 +211,12 @@ version = "1.2.13+0"
 deps = ["Artifacts", "Libdl"]
 uuid = "8f36deef-c2a5-5394-99ed-8e07531fb29a"
 version = "14.0.6+3"
+
+[[deps.libgsd_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl"]
+git-tree-sha1 = "1cbceb9a186cd556150ca4657cad9f1d94459940"
+uuid = "e4d6e05a-3816-5255-9332-8392038f2e0f"
+version = "3.2.1+0"
 
 [[deps.nghttp2_jll]]
 deps = ["Artifacts", "Libdl"]
