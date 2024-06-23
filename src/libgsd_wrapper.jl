@@ -6,7 +6,7 @@ using Libdl, CBinding, libgsd_jll#,  Scratch, BinaryBuilder
 
 #global cpp_dir = get_scratch!(Base.UUID(0), "gsd_cpp")
 #path="$cpp_dir/gsd/"
-libpath= Libdl.find_library("$(libgsd_jll.artifact_dir)", Base.DL_LOAD_PATH)#[cpp_dir]) )
+libpath= Libdl.find_library("$(libgsd_jll.artifact_dir)/lib/", Base.DL_LOAD_PATH)#[cpp_dir]) )
 
 const c"int8_t" = Int8
 const c"int16_t" = Int16
@@ -22,11 +22,12 @@ const c"NULL"= Nothing
 
 
 #c`-std=c17 -Wall -I$(path) -L$(path) -I$(path)gsd.c -L$(libpath) -llibgsd.so`
-c`-std=c17 -Wall "-I$(libgsd_jll.artifact_dir)/include/gsd.h"  -llibgsd.so`
+c`-std=c17 -Wall "-I$(libgsd_jll.artifact_dir)/include"  -l$(libgsd_jll.artifact_dir)/lib/libgsd.so`
+
 
 c"""
 #include <gsd.h>
-c"""
+"""ji
 
 #include <gsd.c>
 
