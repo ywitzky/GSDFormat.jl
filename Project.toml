@@ -1,4 +1,4 @@
-name = "GSDData"
+name = "GSDFormat"
 uuid = "1b955fb9-6f2e-4960-8f17-37db80c113c6"
 authors = ["ywitzky <134135819+ywitzky@users.noreply.github.com>"]
 version = "0.1.0"
@@ -18,4 +18,4 @@ CondaBinDeps = "0.2"
 JSON = "0.21"
 julia = "1"
 libgsd_jll = "3.2.1"
-### generated using PackageCompatUI
+### Done using PackageCompatIO
