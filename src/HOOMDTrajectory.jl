@@ -1,6 +1,6 @@
 ### copies class definitions from hoomd.py
 
-module GSD
+#module GSD
 
 include("./Structs.jl")
 include("./gsd_base.jl")
@@ -470,4 +470,4 @@ function close(traj::HOOMDTrajectory)
 end
 
 
-end
+#end

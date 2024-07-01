@@ -2,7 +2,7 @@
 
 julia_version = "1.9.3"
 manifest_format = "2.0"
-project_hash = "bcfbeae59b7a1669ced426975e517bbefd51dc43"
+project_hash = "a653cc8632335530d82a95be4c21083795b16b20"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -22,9 +22,9 @@ version = "1.0.2"
 
 [[deps.CBinding]]
 deps = ["Clang_jll", "Libdl", "Markdown", "Scratch"]
-git-tree-sha1 = "13eed56e356c0653c8bfe810e7b00b685fec75d8"
+git-tree-sha1 = "f44db2f8f6e51e7b9f222ae5c61ab20b2d4c5d8b"
 uuid = "d43a6710-96b8-4a2d-833c-c424785e5374"
-version = "1.0.11"
+version = "1.0.12"
 
 [[deps.Clang_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "TOML", "Zlib_jll", "libLLVM_jll"]
@@ -34,9 +34,9 @@ version = "14.0.6+4"
 
 [[deps.Conda]]
 deps = ["Downloads", "JSON", "VersionParsing"]
-git-tree-sha1 = "51cab8e982c5b598eea9c8ceaced4b58d9dd37c9"
+git-tree-sha1 = "b19db3927f0db4151cb86d073689f2428e524576"
 uuid = "8f4d0f93-b110-5947-807f-2305c1781a2d"
-version = "1.10.0"
+version = "1.10.2"
 
 [[deps.CondaBinDeps]]
 deps = ["BinDeps", "Conda"]
@@ -212,9 +212,9 @@ version = "14.0.6+3"
 
 [[deps.libgsd_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "1cbceb9a186cd556150ca4657cad9f1d94459940"
+git-tree-sha1 = "3cd62b8011401b8082243e7ebc84c2d90a87b68b"
 uuid = "e4d6e05a-3816-5255-9332-8392038f2e0f"
-version = "3.2.1+0"
+version = "3.2.1+1"
 
 [[deps.nghttp2_jll]]
 deps = ["Artifacts", "Libdl"]

@@ -1,4 +1,4 @@
-module gsd
+module GSDData
 
 include("./HOOMDTrajectory.jl")
 

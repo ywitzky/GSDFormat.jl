@@ -1,12 +1,15 @@
 module libgsd
 
-using Libdl, CBinding, libgsd_jll#,  Scratch, BinaryBuilder
+using  CBinding, libgsd_jll#,  Scratch, BinaryBuilder
+#Libdl,
 
 ### use same unique id as in build step
 
 #global cpp_dir = get_scratch!(Base.UUID(0), "gsd_cpp")
 #path="$cpp_dir/gsd/"
-libpath= Libdl.find_library("$(libgsd_jll.artifact_dir)/lib/", Base.DL_LOAD_PATH)#[cpp_dir]) )
+#libpath= Libdl.find_library("$(libgsd_jll.artifact_dir)/lib/", Base.DL_LOAD_PATH)#[cpp_dir]) )
+
+libpath="$(libgsd_jll.artifact_dir)/lib/"
 
 const c"int8_t" = Int8
 const c"int16_t" = Int16
