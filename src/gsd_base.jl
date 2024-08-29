@@ -634,6 +634,3 @@ end
 function get_nframes(gsdfileobj::GSDFILE)
     return libgsd.gsd_get_nframes(gsdfileobj.gsd_handle)
 end
-#function find_chunk(file, frame, name)
-
-#end

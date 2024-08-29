@@ -1,3 +1,5 @@
+[![Aqua QA](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
+
 # Julia wrapper for the GSD data format
 
 This is a Julia wrapper for the gsd data format used by the [HOOMD-blue](https://glotzerlab.engin.umich.edu/hoomd-blue/) simulation package.
