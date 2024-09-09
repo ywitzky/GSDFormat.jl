@@ -3,7 +3,7 @@ include("./libgsd_wrapper.jl")
 using Base.Libc, CBinding
 import Base.close
 
-gsd_version = "3.1.1"
+gsd_version = "3.3.1"
 
 ### basically a julia copy of fl.pyx in the github of the glotzlab gsd code
 
@@ -24,8 +24,6 @@ mutable struct GSDFILE{I<:Integer}
     gsd_handle::Base.RefValue{typeof(libgsd.gsd_handle())} ### Base.RefValue{libgsd.gsd_handle} is different for whatever reason.
     is_open::Bool
 end
-
-
 
 removeNonASCII(str::AbstractString) = Vector{UInt8}(String([Char(c) for c in str if isascii(c)]))
 
@@ -211,12 +209,11 @@ function read_chunk(file::GSDFILE{I}; frame::I, name::String) where {I<:Integer}
 
     #GC.@preserve index_entry_ptr index_entry begin
 
-        if isnothing(index_entry)
+    if isnothing(index_entry)
         throw(ErrorException("frame $(frame) / chunk $(name) not found in: $(file.name)"))
     end
 
     gsd_type = index_entry.type
-    
     if gsd_type == libgsd.GSD_TYPE_UINT8
         data_type=UInt8
     elseif gsd_type == libgsd.GSD_TYPE_UINT16
@@ -243,6 +240,10 @@ function read_chunk(file::GSDFILE{I}; frame::I, name::String) where {I<:Integer}
 
     data_ptr = Libc.calloc(index_entry.N*index_entry.M, sizeof(data_type)) ### allocate zeroed memory in c-style
 
+    if index_entry.N == 0 && index_entry.M == 0
+        return nothing
+    end
+
     # only read chunk if we have data
     if index_entry.N != 0 && index_entry.M != 0
 
@@ -252,6 +253,9 @@ function read_chunk(file::GSDFILE{I}; frame::I, name::String) where {I<:Integer}
 
         data_array = copy(permutedims( unsafe_wrap(Matrix{data_type}, reinterpret(Ptr{data_type}, data_ptr),(UInt64(index_entry.M), UInt64(index_entry.N)); own=false), (2,1))) ###retrieve data from pointer and convert from cstyle to julia/fortran-style order; command is messy since Cbinding cant deal with void pointer for the data array
         ### TODO Potentially optimise
+    else
+        data_array =  unsafe_wrap(Array{data_type}, reinterpret(Ptr{data_type}, data_ptr),( UInt64(index_entry.M)); own=false);
+        return data_array
     end
     Libc.free(data_ptr) ### free alloc
 
@@ -306,7 +310,6 @@ function chunk_exists(file::GSDFILE{I}; frame::I, name::String) where {I<:Intege
             f.chunk_exists(frame=10, name='chunk1')
             f.close()
     """
-
     index_entry_ptr = libgsd.gsd_find_chunk(file.gsd_handle,UInt64(frame),name)
 
     return ~libgsd.isNULL(index_entry_ptr)
