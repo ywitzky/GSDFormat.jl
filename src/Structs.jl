@@ -150,8 +150,8 @@ mutable struct ParticleData <: StructType
     velocity::Union{Array{Float32}, Nothing}
     angmom::Union{Array{Float32}, Nothing}
     image::Union{Array{Int32}, Nothing}
-    type_shapes::Vector{Any}### TODO: Fix this type
-    ParticleData() = new(0, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing)
+    type_shapes::Union{Vector{Any}, Nothing}### TODO: Fix this type
+    ParticleData() = new(0, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing,nothing, nothing)
 end
 
 function get_container_names(data::ParticleData)
@@ -198,7 +198,7 @@ function validate(data::ParticleData)
     if !isnothing(data.velocity) && size(data.velocity)!=(data.N, 3)
         data.velocity = reshape(data.velocity, (data.N, 3))
     end
-    if !isnothing(data.velocity) && size(data.velocity)!=(data.N, 4)
+    if !isnothing(data.angmom) && size(data.angmom)!=(data.N, 4)
         data.angmom = reshape(data.angmom, (data.N, 4))
     end
     if !isnothing(data.image) && size(data.image)!=(data.N, 3)
@@ -266,7 +266,8 @@ mutable struct BondData{M<:Tuple} <: StructType
     types::Union{Vector{String}, Nothing}
     typeid::Union{Vector{UInt32},Nothing}
     group::Union{Array{Int32}, Nothing}
-    BondData(M::Integer)= new{Tuple{M}}(UInt32(0), [], zeros(UInt32, 0),  zeros(UInt32, (0,4)))
+    #BondData(M::Integer)= new{Tuple{M}}(UInt32(0), ["a"], zeros(UInt32, 0),  zeros(UInt32, (0,4)))
+    BondData(M::Integer)= new{Tuple{M}}(UInt32(0), nothing, nothing,  nothing)
 end
 
 function get_container_names(data::BondData{<:Tuple}) #where {A<:Tuple{<:Integer}}
@@ -300,7 +301,7 @@ function validate(data::BondData{<:Tuple})# where {M<:Integer}
     ### TODO: Check should be unnecessary
     #if data.typeid is not None:
     #    data.typeid = data.typeid.reshape([data.N])
-    
+
     if !isnothing(data.group) && size(data.group)!=(data.N, getM(data))
         data.group = reshape(data.group, (data.N, getM(data)))
     end
@@ -375,29 +376,39 @@ default_values = Dict{Tuple{String, Any}, Any}(
 ("step", nothing)=> UInt64(0),
 ("dimensions", nothing ) => zero(UInt8),
 ("box", nothing ) =>  [1f0, 1f0, 1f0, 0f0, 0f0, 0f0], 
-("N", nothing ) => UInt32, 
-("group", nothing) => zeros(Int32,1), 
+("N", nothing ) => UInt32(0), 
+("group", nothing) => zero(Int32), 
 ("group", BondData{Tuple{2}} ) => zeros(Int32,2), 
 ("group", BondData{Tuple{3}} ) => zeros(Int32,3), 
 ("group", BondData{Tuple{4}} ) => zeros(Int32,4), 
-("types", ParticleData ) => ['A'], 
-("typeid", ParticleData ) => zeros(Float32,1), 
-("types", nothing ) => [], 
-("typeid", nothing ) => zeros(UInt32,1), 
-("mass", nothing ) => ones(Float32,1), 
-("charge", nothing ) => zeros(Float32,1), 
-("diameter", nothing ) => ones(Float32, 1), 
-("body", nothing ) => -ones(Int32, 1), 
-("moment_inertia", nothing ) => zeros(Float32, 3), 
-("position", nothing ) =>  zeros(Float32, 3), 
+("types", ParticleData ) => "A", 
+("typeid", ParticleData ) => zero(UInt32), 
+("types", nothing ) => "A", 
+("typeid", nothing ) => zero(UInt32), 
+("mass", nothing ) => one(Float32), 
+("charge", nothing ) => zero(Float32), 
+("diameter", nothing ) => one(Float32), 
+("body", nothing ) => -one(Int32), 
+("moment_inertia", nothing ) => zero(Float32), 
+("position", nothing ) =>  zero(Float32), 
 ("orientation", nothing ) => [1f0, 0f0, 0f0,0f0], 
 ("velocity", nothing ) => zeros(Float32, 3), 
 ("angmom", nothing ) => zeros(Float32, 4), 
 ("image", nothing ) => zeros(Float32, 3), 
 ("type_shapes", nothing ) => Vector{Dict{Any, Any}}(), 
-("value", nothing ) => zeros(Float32,1) 
+("value", nothing ) => zero(Float32) 
 )
 
+function get_default(str::String, Struct::S, N::I) where {S<:Union{ParticleData, BondData, StructType, Nothing}, I<:Integer}
+    def_val = get_default(str, Struct) 
+    if typeof(def_val)==String 
+        return [def_val for i in 1:N]
+    elseif ndims(def_val) == 0
+        return [def_val for i in 1:N]
+    else
+        return permutedims(hcat([def_val for i in 1:N]...))
+    end
+end
 
 function get_default(str::String, Struct::S) where {S<:Union{ParticleData, BondData, StructType, Nothing}}
     ### getter that gets specialised default before universal default

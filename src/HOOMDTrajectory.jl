@@ -1,7 +1,5 @@
 ### copies class definitions from hoomd.py
 
-#module GSD
-
 include("./Structs.jl")
 include("./gsd_base.jl")
 
@@ -10,7 +8,7 @@ import .Base: size, getindex, isdone, iterate, length, eltype
 
 mutable struct HOOMDTrajectory{I<:Integer}# where {I<:Integer}
     file::GSDFILE{I}
-    initial_frame::Union{I, Nothing}
+    initial_frame::Union{Frame, Nothing}
 end
 """Read and write hoomd gsd files.
 
@@ -23,7 +21,6 @@ Open hoomd GSD files with `open`.
 function HOOMDTrajectory(gsdobj::GSDFILE{<:Integer}) 
     return init_HOOMDTrajectory(gsdobj)
 end
-
 
 function init_HOOMDTrajectory(file::GSDFILE{I}) where {I<:Integer}
     if file.mode == "ab"
@@ -53,7 +50,7 @@ end
 
 @inline function size(traj::HOOMDTrajectory{<:Integer})
     """The number of frames in the trajectory."""
-    return traj.file.nframes
+    return traj.file.nframes 
 end
 
 @inline function firstindex(traj::HOOMDTrajectory{<:Integer})    
@@ -193,14 +190,16 @@ function _read_frame(traj::HOOMDTrajectory{<:Integer}, idx::Integer)
         end
 
         # type names; TODO test for BondDatA
-        if typeof(container) ==ParticleData || typeof(container) <: BondData{<:Integer}  
+        if typeof(container) ==ParticleData || typeof(container) <: BondData 
             if chunk_exists(traj.file, frame=idx, name="$path/types")
-                container.types = Char.(read_chunk(traj.file, frame=idx, name="$path/types")[:,1]) ### seems like weird behaviour. always second column which is empty
+                container.types = [String(Char.(row[1:end-1])) for row in eachrow(read_chunk(traj.file, frame=idx, name="$path/types"))]
             else
                 if ~isnothing(traj.initial_frame)
                     container.types = initial_frame_container.types
                 else
-                    container.types = get_default("types", container)
+                    N = getproperty(container,:N)
+                    N = N==0 ? 1 : N
+                    container.types = setproperty!(container, :types,get_default("types", container, N) )
                 end
             end
         end
@@ -219,18 +218,29 @@ function _read_frame(traj::HOOMDTrajectory{<:Integer}, idx::Integer)
         end
 
         for name in get_container_names(container)
+            if name in [:N, :types, :type_shapes]
+                continue
+            end
+
             # per particle/bond quantities
             if chunk_exists(traj.file, frame=idx, name="$path/$name")
-                setproperty!(container, name, read_chunk(traj.file,frame=idx, name="$path/$name"))
+                if name ==:N 
+                    setproperty!(container, name, read_chunk(traj.file,frame=idx, name="$path/$name")[1])
+                elseif name ==:types
+                    setproperty!(container, name, [String(Char.(collect(row[1:end-1]))) for row in eachrow(read_chunk(traj.file, frame=idx, name="$path/types"))])
+                else
+                    setproperty!(container, name, read_chunk(traj.file,frame=idx, name="$path/$name"))
+                end
             else
                 if !isnothing(traj.initial_frame) &&  initial_frame_container.N == container.N
                     # read default from initial frame
                     setproperty!(container, name, getproperty(initial_frame_container, name))
                 else
                     # initialize from default value
-                    setproperty!(container, name, copy(get_default("$name", container)) )
+                    N = getproperty(container,:N)
+                    N = N==0 ?  1 : N
+                    setproperty!(container, name,get_default("$name", container, N) )
                 end
-                #getproperty(container, name).flags.writable=false
             end
         end
     end
@@ -255,8 +265,8 @@ function _read_frame(traj::HOOMDTrajectory{<:Integer}, idx::Integer)
     end
 
     # store initial frame
-    if ~isnothing(traj.initial_frame) && idx == 0
-        traj._initial_frame = frame
+    if isnothing(traj.initial_frame) && idx == 0
+        traj.initial_frame = deepcopy(frame)
     end
 
     return frame
@@ -300,7 +310,7 @@ function open(name::AbstractString, mode="r")
 
     """
 
-    gsdfileobj = open_gsd(name, string(mode); application="gsd.hoomd" * gsd_version, schema="hoomd", schema_version=(1, 4))
+    gsdfileobj = open_gsd(name, string(mode); application="gsd.hoomd " * gsd_version, schema="hoomd", schema_version=(1, 4))
 
     return HOOMDTrajectory(gsdfileobj)
 end
@@ -435,14 +445,16 @@ function append(traj::HOOMDTrajectory, frame::Frame)
                     data = Vector{UInt8}(data)
                 end
                 if name in (Symbol("types"), Symbol("type_shapes"))
-                    ### TODO needs to be tested for type_shapes
-                    data = Vector{Vector{UInt8}}([Vector{UInt8}(length(shape_dict)==1 ? " $shape_dict" : shape_dict) for shape_dict in data]) ### TODO: fix the " $shape_dict", which is needed since 1 char strings wont work otherwise
-                    wid = maximum(length.(data))
-                    new_data = zeros(UInt8, (length(data), wid))
-                    for (i, d) in enumerate(data)
-                        new_data[i,1:length(d)] .= d
+                    if !isnothing(data)
+                        ### TODO needs to be tested for type_shapes
+                        data = Vector{Vector{UInt8}}([Vector{UInt8}("$shape_dict ") for shape_dict in data]) ### need 0 termination for cstrings 
+                        wid = maximum(length.(data))
+                        new_data = zeros(UInt8, (length(data), wid))
+                        for (i, d) in enumerate(data)
+                            new_data[i,1:length(d)] .= d
+                        end
+                        data = new_data
                     end
-                    data = new_data
                 end
                 write_chunk(traj.file, "$path/$name", data)
             end
@@ -470,4 +482,10 @@ function close(traj::HOOMDTrajectory)
 end
 
 
-#end
+function get_chunk_names(traj::HOOMDTrajectory)
+    start = Ptr{Int8}(((traj.file.gsd_handle[]).file_names.data.data))
+    res = (traj.file.gsd_handle[]).file_names.data.reserved[]
+    stop =start+res
+    return split(strip(join([Char(Cptr{Cuchar}(ptr)[]) for ptr in start:stop]), '\0'), "\0")
+end
+

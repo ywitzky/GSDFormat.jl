@@ -1,2 +1,5 @@
 build.log
 Manifest.toml
+*gsd
+test/python_test.py
+test/tmp/
