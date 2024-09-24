@@ -12,7 +12,7 @@ libgsd_jll = "e4d6e05a-3816-5255-9332-8392038f2e0f"
 [compat]
 Aqua = "0.8.7"
 CBinding = "1"
-Clang_jll = "15.0.7"
+Clang_jll = "^9, ^11, ^12, ^13, ^14, ^15, ^16"
 JSON = "0.21"
 Test = "1.0.0"
 julia = "1"

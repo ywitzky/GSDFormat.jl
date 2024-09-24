@@ -192,7 +192,7 @@ function _read_frame(traj::HOOMDTrajectory{<:Integer}, idx::Integer)
         # type names; TODO test for BondDatA
         if typeof(container) ==ParticleData || typeof(container) <: BondData 
             if chunk_exists(traj.file, frame=idx, name="$path/types")
-                container.types = [String(Char.(row[1:end-1])) for row in eachrow(read_chunk(traj.file, frame=idx, name="$path/types"))]
+                container.types = [String(Char.(row[1:end-1])) for row in eachrow(read_chunk(traj.file, frame=idx, name="$path/types"))] ### have 0 terminated strings from c
             else
                 if ~isnothing(traj.initial_frame)
                     container.types = initial_frame_container.types
@@ -447,7 +447,7 @@ function append(traj::HOOMDTrajectory, frame::Frame)
                 if name in (Symbol("types"), Symbol("type_shapes"))
                     if !isnothing(data)
                         ### TODO needs to be tested for type_shapes
-                        data = Vector{Vector{UInt8}}([Vector{UInt8}("$shape_dict ") for shape_dict in data]) ### need 0 termination for cstrings 
+                        data = Vector{Vector{UInt8}}([Vector{UInt8}("$(shape_dict)\0") for shape_dict in data]) ### need 0 termination for cstrings 
                         wid = maximum(length.(data))
                         new_data = zeros(UInt8, (length(data), wid))
                         for (i, d) in enumerate(data)
