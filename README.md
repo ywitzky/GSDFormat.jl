@@ -8,7 +8,7 @@ This is a Julia wrapper for the gsd data format used by the [HOOMD-blue](https:/
 
 ```
 using Pkg 
-Pkg.add("GSD")
+Pkg.add("GSDFormat")
 ```
 
 ### Usage
@@ -29,6 +29,6 @@ Windows is not support since gsd builds on unix calls such as pwrite etc. Plattf
 
 
 ### Warning 
-
-GSD special particle type "type_shapes" is untested as of now. 
+- CBinding.jl versions >1.0.9 currently break reading data.
+- GSD special particle type "type_shapes" is untested as of now. 
 
