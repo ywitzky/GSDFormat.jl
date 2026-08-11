@@ -1,13 +1,13 @@
 using GSDFormat, Test
 
 ### test (nearly) empty file once
-traj = GSDFormat.open("./tmp/test.gsd","w")
+traj = GSDFormat.open("$(TestPath)/test.gsd","w")
 frame = GSDFormat.Frame()
 frame.configuration.dimensions=3
 GSDFormat.append(traj, frame)
 close(traj)
 
-traj_test = GSDFormat.open("./tmp/test.gsd","r")
+traj_test = GSDFormat.open("$(TestPath)/test.gsd","r")
 test_frame = traj_test[1]
 
 @testset "Empty GSD File" begin
@@ -32,10 +32,9 @@ N = 48
 L = 200
 
     
-mkpath("./tmp/")
 
 
-traj = GSDFormat.open("./tmp/test.gsd","w")
+traj = GSDFormat.open("$(TestPath)/test.gsd","w")
 
 
 frame = GSDFormat.Frame()
@@ -100,7 +99,7 @@ frame2 = deepcopy(frame)
 GSDFormat.append(traj, frame) ##### error happends while writing
 close(traj)
 
-traj_test = GSDFormat.open("./tmp/test.gsd","r")
+traj_test = GSDFormat.open("$(TestPath)/test.gsd","r")
 test_frame = traj_test[1]
 
 @testset "Written on Harddrive" begin

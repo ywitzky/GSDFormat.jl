@@ -1,9 +1,11 @@
 
-using GSDFormat, Aqua, Test,CBinding
+using GSDFormat, Aqua, Test,CBinding, Scratch
 
 macro namedtest(name, test)
     esc(:(@testset $name begin @test $test end))
 end
+
+TestPath = Scratch.get_scratch!(GSDFormat, "test") 
 
 
 using Base: unsafe_convert
