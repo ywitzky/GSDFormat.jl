@@ -29,6 +29,6 @@ Windows is not support since gsd builds on unix calls such as pwrite etc. Plattf
 
 
 ### Warning 
-- CBinding.jl versions >1.0.9 currently break reading data.
+- CBinding.jl versions >1.0.12 currently break reading data.
 - GSD special particle type "type_shapes" is untested as of now. 
 

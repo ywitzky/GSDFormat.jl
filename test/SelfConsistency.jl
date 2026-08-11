@@ -38,7 +38,6 @@ mkpath("./tmp/")
 traj = GSDFormat.open("./tmp/test.gsd","w")
 
 
-
 frame = GSDFormat.Frame()
 
 ### init Configuration Data
@@ -97,12 +96,9 @@ frame.pairs.types = ["A"]
 frame.pairs.typeid = ones(3)
 frame.pairs.group = [i-j for j in 0:1, i in N-2:N]
 
-
-
-GSDFormat.append(traj, frame)
+frame2 = deepcopy(frame)
+GSDFormat.append(traj, frame) ##### error happends while writing
 close(traj)
-
-
 
 traj_test = GSDFormat.open("./tmp/test.gsd","r")
 test_frame = traj_test[1]

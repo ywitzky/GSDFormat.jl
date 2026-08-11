@@ -41,7 +41,7 @@ function raise_on_error(retval, extra)
     elseif retval == libgsd.GSD_ERROR_INVALID_GSD_FILE_VERSION
         throw(ErrorException("Unsupported GSD file version: " * extra))
     elseif retval == libgsd.GSD_ERROR_FILE_CORRUPT
-        throw(ErrorException("Corrupt GSD file: " + extra))
+        throw(ErrorException("Corrupt GSD file: " * extra))
     elseif retval == libgsd.GSD_ERROR_MEMORY_ALLOCATION_FAILED
         throw(ErrorException("Memory allocation failed: " * extra))
     elseif retval == libgsd.GSD_ERROR_NAMELIST_FULL
